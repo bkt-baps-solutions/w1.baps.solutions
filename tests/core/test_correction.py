@@ -1,78 +1,55 @@
 """Correction-engine unit tests (pure — no audio, model, or OS).
 
-The load-bearing safety property: dictation mode applies ONLY sacred terminology, never the
-editorial rules that would corrupt ordinary/clinical English; raw mode changes nothing.
-"""
-from w1_core.correction.loader import load_rule_data
+The load-bearing safety property: the engine NEVER substitutes the user's words. It transcribes
+ordinary English verbatim and only fixes the *spelling* of specialised BAPS/Gujarati terms the
+user actually says (snapping a mis-heard token onto its canonical glossary spelling)."""
+from w1_core.config import W1Config
+from w1_core.correction.engine import correct
 from w1_core.correction.protect import mask_protected, unmask_protected
-from w1_core.correction.rules import apply_terminology
 
 
-def test_rule_data_loads():
-    d = load_rule_data()
-    assert len(d.rules) == 64
-    assert len(d.protected) == 20
-    assert "akshardham" in d.in_vocab
-    assert d.canonical_by_lower["akshardham"] == "Akshardham"
+def _cfg(**over):
+    return W1Config(**over)
 
 
-# --- dictation mode: sacred terminology fires (with case preservation) -------------------
-def test_dictation_sacred_substitutions():
-    cases = {
-        "We visited the temple today": "We visited the mandir today",
-        "the aarti was beautiful": "the arti was beautiful",
-        "Shrijimaharaj spoke": "Shriji Maharaj spoke",
-        "the saints gathered": "the swamis gathered",      # lowercase preserved
-        "Saints gathered": "Swamis gathered",              # capital preserved
-        "read the scriptures": "read the shastras",
-        "the congregation prayed": "the satsang prayed",
-        "join the fellowship": "join the satsang",
-        "daily recitation matters": "daily mukhpath matters",
-    }
-    for src, want in cases.items():
-        got, _ = apply_terminology(src, "dictation")
-        assert got == want, f"{src!r} -> {got!r} (wanted {want!r})"
-
-
-# --- dictation mode: editorial families MUST NOT fire (clinical-safety) ------------------
-def test_dictation_does_not_apply_editorial_rules():
-    for src in [
-        "perhaps we will meet",        # hedging (document-only)
-        "a major milestone",           # forbidden-vocab (document-only)
-        "our main stakeholder",        # forbidden-vocab (document-only)
-        "we drove through Saurashtra",  # place-name (document-only)
-    ]:
-        got, _ = apply_terminology(src, "dictation")
-        assert got == src, f"editorial rule leaked into dictation: {src!r} -> {got!r}"
-
-
-def test_dictation_negative_corpus_is_byte_identical():
-    """Ordinary English / clinical / tech speech must pass through untouched in dictation mode."""
+# --- the cardinal guarantee: ordinary English is never changed --------------------------
+def test_ordinary_english_passes_through_untouched():
     safe = [
-        "I gave him a hand with the array index",
+        "I went to the temple to see the saint",        # NEVER -> mandir / Swami
+        "the patient was on the ward this morning",
         "we hit a project milestone for our main stakeholder",
-        "I had dal and rice for lunch",
-        "the meeting is probably on Tuesday",
-        "seven patients were seen on the ward",
+        "perhaps we will meet on Tuesday",
+        "I gave him a hand with the array index",
     ]
     for s in safe:
-        got, log = apply_terminology(s, "dictation")
-        assert got == s, f"false correction: {s!r} -> {got!r}"
-        assert log == []
+        res = correct(s, _cfg())
+        assert res.text == s, f"false correction: {s!r} -> {res.text!r}"
 
 
-# --- document mode: editorial families fire ----------------------------------------------
-def test_document_mode_applies_editorial():
-    assert apply_terminology("a major milestone", "document")[0] == "a major occasion"
-    assert apply_terminology("we drove through Saurashtra", "document")[0] == "we drove through Kathiawad"
-    assert "perhaps" not in apply_terminology("perhaps we will meet", "document")[0].lower()
+# --- spelling of spoken specialised terms IS corrected ----------------------------------
+def test_misheard_terms_get_canonical_spelling():
+    res = correct("we read the vachanamrit at akshardam", _cfg())
+    assert "Vachanamrut" in res.text
+    assert "Akshardham" in res.text
+    assert res.applied  # a snap was logged
 
 
-# --- raw mode: nothing changes ------------------------------------------------------------
-def test_raw_mode_changes_nothing():
-    for src in ["We visited the temple", "the saints gathered", "perhaps a milestone"]:
-        got, log = apply_terminology(src, "raw")
-        assert got == src and log == []
+def test_correctly_spelled_terms_are_left_alone():
+    text = "the concept of brahmacharya and the antahkaran"
+    assert correct(text, _cfg()).text == text
+
+
+# --- cleanup: light disfluency removal, but no word rewriting by default -----------------
+def test_fillers_removed_but_words_not_rewritten():
+    res = correct("um the meeting is on Tuesday", _cfg())
+    assert "um" not in res.text.split()
+    assert "meeting" in res.text  # real words untouched
+
+
+def test_self_corrections_are_off_by_default():
+    # "X, I mean Y" rewriting changes the user's words -> disabled by default.
+    text = "send it Monday, I mean Tuesday"
+    assert correct(text, _cfg()).text == text
 
 
 # --- protected terms ----------------------------------------------------------------------
@@ -85,11 +62,3 @@ def test_protect_roundtrip_canonical_casing():
 def test_protect_preserves_name_maya():
     masked, store = mask_protected("Maya went home")
     assert unmask_protected(masked, store) == "Maya went home"
-
-
-def test_protect_blocks_rule_mutation_but_allows_others():
-    # 'shastra' is protected (masked); 'scripture' is not -> rule converts it to 'shastra'
-    masked, store = mask_protected("the shastra and the scripture")
-    ruled, _ = apply_terminology(masked, "dictation")
-    out = unmask_protected(ruled, store)
-    assert out == "the shastra and the shastra"

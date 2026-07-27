@@ -15,7 +15,6 @@ import rumps
 from PyObjCTools import AppHelper
 
 from w1_core import __version__
-from w1_core.config import CorrectionMode, W1Config
 from w1_macos.controller import Controller
 from w1_macos.hotkey import HotkeyListener
 from w1_macos.paths import resource_dir
@@ -29,22 +28,17 @@ def _short_version() -> str:
     return ".".join(__version__.split(".")[:2])
 _ICON_IDLE = str(_MENUBAR / "idle.png")
 _ICON_ACTIVE = str(_MENUBAR / "active.png")
-# Menu order is deliberate: Dictate (verbatim) -> Default (sacred-aware) -> Clean + (editorial)
-# -> Gujarati (katha). The map values are the user-facing labels.
-_MODE_LABEL = {
-    CorrectionMode.raw: "Dictate",
-    CorrectionMode.dictation: "Default",
-    CorrectionMode.document: "Clean +",
-    CorrectionMode.gujarati: "Gujarati (katha)",
-}
 
 
 class W1App(rumps.App):
     def __init__(self) -> None:
         super().__init__("w1", title=None, icon=_ICON_IDLE, template=True, quit_button=None)
-        self.config = W1Config()
+        from w1_macos import settings_store
+
+        self.config = settings_store.load_config()  # persisted user settings (hotkey)
         self.widget = None
         self.paste_panel = None
+        self.settings_window = None
         self.controller = Controller(
             self.config,
             on_state=self._on_state,
@@ -57,16 +51,12 @@ class W1App(rumps.App):
             mode=self.config.hotkey_mode.value,
             key=self.config.hotkey,
         )
-        self._mode_items = {
-            mode: rumps.MenuItem(label, callback=self._make_mode_setter(mode))
-            for mode, label in _MODE_LABEL.items()
-        }
-        self._mode_items[CorrectionMode.dictation].state = 1
+        from w1_macos.hotkey import key_label
+
         self.menu = [
-            rumps.MenuItem("W1 — hold Right-Option to talk", callback=None),
+            rumps.MenuItem(f"W1 — hold {key_label(self.config.hotkey)} to talk", callback=None),
             None,
-            *self._mode_items.values(),
-            None,
+            rumps.MenuItem("Settings…", callback=self._open_settings),
             rumps.MenuItem("Relaunch W1", callback=self._relaunch),
             rumps.MenuItem("About W1", callback=self._about),
             None,
@@ -98,21 +88,29 @@ class W1App(rumps.App):
         self.icon = _ICON_ACTIVE if state in ("listening", "processing") else _ICON_IDLE
         self.template = True
 
-    def _make_mode_setter(self, mode: CorrectionMode):
-        def _setter(_item) -> None:
-            self.controller.set_mode(mode.value)
-            for m, item in self._mode_items.items():
-                item.state = 1 if m == mode else 0
+    # -- settings -------------------------------------------------------------
+    def save_settings(self) -> None:
+        from w1_macos import settings_store
 
-        return _setter
+        settings_store.save_config(self.config)
+
+    def _open_settings(self, _item=None) -> None:
+        try:
+            if self.settings_window is None:
+                from w1_macos.settings_window import SettingsWindow
+
+                self.settings_window = SettingsWindow.alloc().initWithApp_(self)
+            self.settings_window.show()
+        except Exception as exc:  # pragma: no cover - environment dependent
+            rumps.alert(title="W1", message=f"Settings window unavailable:\n{exc}", ok="Close")
 
     def _about(self, _item) -> None:
         rumps.alert(
             title="W1",
             message=(
                 f"W1 v{_short_version()}\n\n"
-                "Local, privacy-first dictation — English + BAPS Gujarati,\n"
-                "fully on-device. Built for sewa. Private by design."
+                "Local, private dictation — fully on-device.\n"
+                "Accurate transcription with correct spelling of specialised terms."
             ),
             ok="Close",
         )

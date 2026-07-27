@@ -9,10 +9,9 @@ from dataclasses import dataclass, field
 
 from .backends.base import TranscriptionBackend, TranscriptionResult
 from .backends.factory import select_backend
-from .config import CorrectionMode, W1Config
+from .config import W1Config
 from .correction.bias_prompt import build_initial_prompt
 from .correction.engine import correct
-from .correction.transliterate import transliterate_gujarati
 
 # Known Whisper hallucinations into silence/near-silence — never insert these.
 _ARTIFACTS = {
@@ -60,27 +59,14 @@ def transcribe_and_correct(
     audio, config: W1Config, *, backend: TranscriptionBackend | None = None
 ) -> InjectResult:
     backend = backend or select_backend(config)
-    # The English bias prompt would skew Gujarati decoding, so it is English-modes only.
-    prompt = (
-        ""
-        if config.correction_mode is CorrectionMode.gujarati
-        else build_initial_prompt(config.bias_token_budget)
-    )
-    raw = backend.transcribe(
-        audio, initial_prompt=prompt or None, language=config.resolved_language()
-    )
+    prompt = build_initial_prompt(config.bias_token_budget)
+    raw = backend.transcribe(audio, initial_prompt=prompt or None, language=config.language)
 
     text = raw.text.strip()
     if _is_artifact(text):
         return InjectResult(text="", raw=raw, applied=[], gated=True, gated_reason="artifact")
     if _is_low_confidence(raw, config):
         return InjectResult(text="", raw=raw, applied=[], gated=True, gated_reason="low_confidence")
-
-    # Gujarati (katha) mode bypasses the English correction chain: transliterate to ā-only Roman.
-    if config.correction_mode is CorrectionMode.gujarati:
-        roman = transliterate_gujarati(text)
-        applied = [{"stage": "transliterate", "script": "gujarati", "rule": "aa_only"}]
-        return InjectResult(text=roman, raw=raw, applied=applied, gated=False)
 
     result = correct(text, config)
     return InjectResult(text=result.text, raw=raw, applied=result.applied, gated=False)

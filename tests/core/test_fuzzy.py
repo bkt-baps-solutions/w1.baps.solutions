@@ -1,5 +1,5 @@
 """Fuzzy/phonetic snap tests — catch Whisper's Gujarati mishears, never corrupt English."""
-from w1_core.config import CorrectionMode, W1Config
+from w1_core.config import W1Config
 from w1_core.correction.engine import correct
 from w1_core.correction.fuzzy import snap_fuzzy
 
@@ -30,12 +30,6 @@ def test_fuzzy_no_false_positives():
         assert out == s, f"false positive: {s!r} -> {out!r}"
 
 
-def test_fuzzy_off_in_raw_mode():
-    cfg = W1Config(correction_mode=CorrectionMode.raw)
-    assert correct("we went to the mandhir", cfg).text == "we went to the mandhir"
-
-
-def test_fuzzy_via_engine_dictation():
-    cfg = W1Config(correction_mode=CorrectionMode.dictation)
-    out = correct("we went to the mandhir for satsung", cfg).text
+def test_fuzzy_via_engine():
+    out = correct("we went to the mandhir for satsung", W1Config()).text
     assert "mandir" in out and "satsang" in out

@@ -11,10 +11,10 @@ from typing import Any
 
 _DATASETS = (
     "glossary",
-    "terminology_rules",
     "protected_terms",
     "diacritics",
     "bias_seed",
+    "master_glossary",  # canonical BAPS terms ingested from the Master Glossary PDF
 )
 
 

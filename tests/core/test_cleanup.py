@@ -3,7 +3,7 @@
 The self-correction heuristic must correct the intended word WITHOUT eating sentence content,
 and must never fire on ordinary speech that merely contains words like "mean" or "sorry".
 """
-from w1_core.config import CleanupConfig, CorrectionMode, W1Config
+from w1_core.config import W1Config
 from w1_core.correction.cleanup import cleanup_text
 from w1_core.correction.engine import correct
 
@@ -43,11 +43,10 @@ def test_filler_does_not_eat_words():
         assert _clean(s) == s, f"filler ate into a word: {s!r} -> {_clean(s)!r}"
 
 
-# --- raw mode disables self-correction (clinical safety), keeps filler --------------------
-def test_raw_mode_no_self_correction():
-    cfg = W1Config(correction_mode=CorrectionMode.raw)
-    # word-deleting self-correction must NOT run in raw mode
-    assert correct("give 5mg I mean 10mg", cfg).text == "give 5mg I mean 10mg"
+# --- self-correction is off by default (never deletes the user's words) ------------------
+def test_self_correction_off_by_default():
+    # word-deleting self-correction must NOT run by default
+    assert correct("give 5mg I mean 10mg", W1Config()).text == "give 5mg I mean 10mg"
 
 
 def test_cleanup_toggle_off():

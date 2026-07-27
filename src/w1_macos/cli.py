@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from w1_core.config import CorrectionMode, W1Config
+from w1_core.config import W1Config
 
 
 def _print_result(res, *, show_raw: bool) -> None:
@@ -29,8 +29,8 @@ def _print_result(res, *, show_raw: bool) -> None:
 def _cmd_transcribe(args) -> int:
     from w1_core.pipeline import transcribe_and_correct
 
-    cfg = W1Config(correction_mode=CorrectionMode(args.mode))
-    print(f"Transcribing {args.file} (mode={args.mode})…", file=sys.stderr)
+    cfg = W1Config()
+    print(f"Transcribing {args.file}…", file=sys.stderr)
     res = transcribe_and_correct(args.file, cfg)
     _print_result(res, show_raw=True)
     return 0
@@ -42,7 +42,7 @@ def _cmd_dictate(args) -> int:
     from w1_core.pipeline import transcribe_and_correct
     from w1_macos.mic import record_seconds, record_until_enter
 
-    cfg = W1Config(correction_mode=CorrectionMode(args.mode))
+    cfg = W1Config()
     audio = record_seconds(args.seconds) if args.seconds else record_until_enter()
     res = transcribe_and_correct(audio, cfg)
     _print_result(res, show_raw=True)
@@ -55,7 +55,7 @@ def _cmd_dictate(args) -> int:
 def _cmd_correct(args) -> int:
     from w1_core.correction.engine import correct
 
-    cfg = W1Config(correction_mode=CorrectionMode(args.mode))
+    cfg = W1Config()
     print(correct(" ".join(args.text), cfg).text)
     return 0
 
@@ -79,7 +79,13 @@ def _cmd_doctor(_args) -> int:
         from w1_core.correction.loader import load_rule_data
 
         d = load_rule_data()
-        print(f"rule data    : {len(d.rules)} rules, {len(d.protected)} protected, {len(d.bias_seed)} bias terms")
+        import w1_data
+
+        master = len(w1_data.load("master_glossary"))
+        print(
+            f"glossary     : {len(d.glossary)} core + {master} master terms, "
+            f"{len(d.protected)} protected, {len(d.bias_seed)} bias terms"
+        )
     except Exception as e:  # pragma: no cover
         print(f"rule data    : ERROR {e}")
     return 0
@@ -91,17 +97,14 @@ def main(argv=None) -> int:
 
     t = sub.add_parser("transcribe", help="transcribe an audio file")
     t.add_argument("file")
-    t.add_argument("--mode", default="dictation", choices=[m.value for m in CorrectionMode])
     t.set_defaults(func=_cmd_transcribe)
 
     d = sub.add_parser("dictate", help="record from the mic and correct")
     d.add_argument("--seconds", type=float, default=None, help="fixed duration instead of Enter-to-stop")
-    d.add_argument("--mode", default="dictation", choices=[m.value for m in CorrectionMode])
     d.set_defaults(func=_cmd_dictate)
 
     c = sub.add_parser("correct", help="run text through the correction engine")
     c.add_argument("text", nargs="+")
-    c.add_argument("--mode", default="dictation", choices=[m.value for m in CorrectionMode])
     c.set_defaults(func=_cmd_correct)
 
     doc = sub.add_parser("doctor", help="check the environment")

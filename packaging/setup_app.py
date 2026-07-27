@@ -61,7 +61,7 @@ PLIST = {
     "NSMicrophoneUsageDescription": (
         "w1 transcribes your speech entirely on this Mac. Audio never leaves your computer."
     ),
-    "NSHumanReadableCopyright": "Built for sewa. Private by design.",
+    "NSHumanReadableCopyright": "Local, private dictation.",
 }
 
 OPTIONS = {
@@ -71,7 +71,7 @@ OPTIONS = {
     # mlx_whisper + mlx are large and dlopen Metal libs; include only if bundling the backend.
     "includes": ["pyperclip"],
     "excludes": EXCLUDES,
-    "iconfile": str(ROOT / "assets" / "menubar" / "idle.png"),
+    "iconfile": str(ROOT / "assets" / "W1.icns"),
     "resources": [str(ROOT / "assets")],
 }
 

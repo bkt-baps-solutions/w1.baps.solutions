@@ -1,10 +1,12 @@
-"""The two-stage correction orchestrator (stage 2 — deterministic post-correction).
+"""Deterministic post-correction: light cleanup + canonical spelling of spoken terms.
 
-Order is load-bearing: cleanup -> mask protected -> [fuzzy snap*] -> ordered terminology
-rules (mode-filtered) -> unmask. Every transformation contributes to a structured log.
+Order is load-bearing: cleanup -> mask protected -> fuzzy canonical-spelling snap -> unmask.
 
-* The fuzzy OOV-snap stage is added in a subsequent iteration; the hook is marked below so the
-  pipeline is correct and complete without it (it only adds recall, never changes these guarantees).
+There is NO word substitution. Ordinary English is transcribed verbatim ("temple" stays
+"temple", "saint" stays "saint"); the only change to wording is fixing the *spelling* of the
+specialised BAPS/Gujarati terms the user actually says, snapping a mis-heard token onto its
+canonical glossary spelling (e.g. "vachanamrit" -> "Vachanamrut"). Every transformation
+contributes to a structured log.
 """
 from __future__ import annotations
 
@@ -14,7 +16,6 @@ from ..config import W1Config
 from .cleanup import cleanup_text
 from .fuzzy import snap_fuzzy
 from .protect import mask_protected, unmask_protected
-from .rules import apply_terminology
 
 
 @dataclass
@@ -24,24 +25,20 @@ class CorrectionResult:
 
 
 def correct(text: str, config: W1Config) -> CorrectionResult:
-    """Apply the full deterministic correction chain for the configured mode."""
+    """Apply the deterministic correction chain (cleanup + canonical-spelling snap)."""
     applied: list[dict] = []
-    mode = config.correction_mode.value
 
     if config.cleanup.enabled:
-        # Clinical/raw mode never deletes words via self-correction — too risky for notes.
-        self_corr = config.cleanup.apply_self_corrections and mode != "raw"
         text, log = cleanup_text(
             text,
             remove_fillers=config.cleanup.remove_fillers,
-            apply_self_corrections=self_corr,
+            apply_self_corrections=config.cleanup.apply_self_corrections,
         )
         applied.extend(log)
 
     masked, store = mask_protected(text)
 
-    # Fuzzy snap of OOV near-misses (off in raw/clinical mode — never invent sacred terms there).
-    if config.fuzzy.enabled and mode != "raw":
+    if config.fuzzy.enabled:
         masked, fuzzy_log = snap_fuzzy(
             masked,
             min_similarity=config.fuzzy.min_similarity,
@@ -49,7 +46,4 @@ def correct(text: str, config: W1Config) -> CorrectionResult:
         )
         applied.extend(fuzzy_log)
 
-    ruled, rule_log = apply_terminology(masked, mode)
-    applied.extend(rule_log)
-
-    return CorrectionResult(text=unmask_protected(ruled, store), applied=applied)
+    return CorrectionResult(text=unmask_protected(masked, store), applied=applied)

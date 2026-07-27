@@ -8,7 +8,7 @@ import pytest
 
 from w1_core.backends.base import Segment, TranscriptionResult
 from w1_core.backends.mock import MockBackend
-from w1_core.config import CorrectionMode, W1Config
+from w1_core.config import W1Config
 from w1_core.pipeline import transcribe_and_correct
 
 
@@ -43,10 +43,16 @@ def test_whisper_hallucinations_are_gated():
 
 
 def test_real_speech_is_corrected_and_not_gated():
-    cfg = W1Config(correction_mode=CorrectionMode.dictation)
-    r = transcribe_and_correct(_audio(), cfg, backend=MockBackend("we visited the temple"))
+    # Ordinary English passes through verbatim; only spelling of spoken terms is corrected.
+    r = transcribe_and_correct(_audio(), W1Config(), backend=MockBackend("we visited the temple"))
     assert not r.gated
-    assert "mandir" in r.text
+    assert r.text == "we visited the temple"  # temple is NOT changed to mandir
+
+
+def test_misheard_term_is_spelled_canonically():
+    r = transcribe_and_correct(_audio(), W1Config(), backend=MockBackend("we read the vachanamrit"))
+    assert not r.gated
+    assert "Vachanamrut" in r.text
 
 
 def test_backend_failure_propagates_for_caller_to_handle():
@@ -70,7 +76,7 @@ def test_low_confidence_transcription_is_gated():
 def test_confident_speech_is_not_gated():
     backend = _SegBackend("we visited the temple", avg_logprob=-0.25, no_speech_prob=0.05)
     r = transcribe_and_correct(_audio(), W1Config(), backend=backend)
-    assert not r.gated and "mandir" in r.text
+    assert not r.gated and r.text == "we visited the temple"  # verbatim, no substitution
 
 
 def test_confidence_gate_can_be_disabled():
@@ -85,12 +91,3 @@ def test_mock_without_segments_is_never_confidence_gated():
     # The mock backend has no segment data -> we must not gate on absent evidence.
     r = transcribe_and_correct(_audio(), W1Config(), backend=MockBackend("a real sentence here"))
     assert not r.gated
-
-
-def test_gujarati_mode_transliterates_to_roman():
-    cfg = W1Config(correction_mode=CorrectionMode.gujarati)
-    assert cfg.resolved_language() == "gu"
-    r = transcribe_and_correct(_audio(), cfg, backend=MockBackend("મંદિર કથા"))
-    assert not r.gated
-    assert r.text == "mandir kathā"
-    assert r.applied and r.applied[0]["stage"] == "transliterate"

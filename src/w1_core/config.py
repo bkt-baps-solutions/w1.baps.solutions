@@ -1,27 +1,14 @@
 """Typed configuration for w1. Pure data — no desktop/ML imports.
 
 A single config object flows from the platform adapter into the core pipeline. Everything
-that changes behaviour (correction mode, model, hotkey, fuzzy thresholds) lives here so the
-core stays declarative and the adapter stays thin.
+that changes behaviour (model, hotkey, fuzzy thresholds) lives here so the core stays
+declarative and the adapter stays thin.
 """
 from __future__ import annotations
 
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class CorrectionMode(str, Enum):
-    """How aggressively the post-correction stage rewrites transcribed text.
-
-    User-facing labels (set in the macOS menu): raw="Dictate", dictation="Default",
-    document="Clean +", gujarati="Gujarati (katha)".
-    """
-
-    dictation = "dictation"  # sacred-terminology family + diacritics + protected casing (DEFAULT)
-    document = "document"    # additionally enables editorial families (forbidden/hedging/place/name/date)
-    raw = "raw"              # bypass ALL terminology rules — clinical/normal dictation path
-    gujarati = "gujarati"    # transcribe Gujarati script -> Roman transliteration (ā-only diacritic)
 
 
 class HotkeyMode(str, Enum):
@@ -38,11 +25,11 @@ class FuzzyConfig(BaseModel):
 
 
 class CleanupConfig(BaseModel):
-    """Light disfluency / spoken self-correction cleanup (deliberately conservative)."""
+    """Light disfluency cleanup (deliberately conservative — never rewrites meaningful words)."""
 
     enabled: bool = True
-    remove_fillers: bool = True            # "um", "uh", "you know" (filler only)
-    apply_self_corrections: bool = True    # "X, I mean Y" -> Y
+    remove_fillers: bool = True             # drop "um"/"uh" disfluencies only
+    apply_self_corrections: bool = False    # off: "X, I mean Y" rewriting changes the user's words
 
 
 class ConfidenceConfig(BaseModel):
@@ -65,7 +52,6 @@ class W1Config(BaseModel):
     # pydantic v2: allow the ``model_*`` field names without protected-namespace warnings.
     model_config = ConfigDict(protected_namespaces=())
 
-    correction_mode: CorrectionMode = CorrectionMode.dictation
     model_id: str = "mlx-community/whisper-large-v3-turbo"
     backend: str = "auto"          # auto | mlx | faster | mock
     language: str | None = "en"
@@ -77,13 +63,3 @@ class W1Config(BaseModel):
     fuzzy: FuzzyConfig = Field(default_factory=FuzzyConfig)
     cleanup: CleanupConfig = Field(default_factory=CleanupConfig)
     confidence: ConfidenceConfig = Field(default_factory=ConfidenceConfig)
-
-    def resolved_language(self) -> str | None:
-        """The Whisper decode language for the active mode.
-
-        Gujarati (katha) mode always decodes Gujarati regardless of the base setting;
-        every other mode uses the configured ``language``.
-        """
-        if self.correction_mode is CorrectionMode.gujarati:
-            return "gu"
-        return self.language

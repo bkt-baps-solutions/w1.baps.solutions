@@ -11,7 +11,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-PY="$ROOT/.venv/bin/python"
+# py2app needs a FRAMEWORK Python (uv's standalone CPython in .venv won't work — see
+# docs/PACKAGING.md). Point W1_BUILD_PYTHON at a framework-Python venv to build without
+# disturbing the dev .venv; defaults to .venv otherwise.
+PY="${W1_BUILD_PYTHON:-$ROOT/.venv/bin/python}"
 
 if ! "$PY" -c "import py2app" >/dev/null 2>&1; then
   echo "py2app not installed in .venv. Run:" >&2

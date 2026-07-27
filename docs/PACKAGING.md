@@ -3,6 +3,33 @@
 W1 ships two ways. For developers, `./install.sh` + `./w1 app` is the tested path. To hand a
 double-clickable app to non-technical users, build a `.app` bundle with py2app.
 
+## Local build (your Mac + a few trusted people)
+
+This is the supported "gold-standard" build for personal use and sharing with a few trusted
+people. It signs with your **Apple Development** identity (already in your keychain), so the app
+runs on your Mac and TCC permission grants persist across rebuilds (stable bundle id
+`health.baps.w1`). Recipients who aren't on your developer team open it once via **right-click ▸
+Open**. (For warning-free distribution to anyone, you'd need a *Developer ID Application* cert +
+notarization — see below.)
+
+```bash
+# 1. One-time: a FRAMEWORK Python build venv (uv's standalone CPython can't run py2app).
+brew install python@3.12 poppler
+/opt/homebrew/opt/python@3.12/bin/python3.12 -m venv .venv-build
+.venv-build/bin/pip install -e '.[mlx,macos,build]'
+
+# 2. Build + sign + (optionally) make a .dmg. build.sh auto-detects your "Apple Development"
+#    identity and signs with it; W1_BUILD_PYTHON points the build at the framework venv.
+W1_BUILD_PYTHON="$PWD/.venv-build/bin/python" packaging/build.sh --dmg
+
+# 3. Install: drag dist/W1.app to /Applications, launch it, and grant Microphone,
+#    Accessibility, and Input Monitoring (System Settings ▸ Privacy & Security).
+```
+
+The Whisper model is **not** bundled — it downloads once on first run to `~/.cache/huggingface`.
+Run the app from `/Applications`, not the iCloud-synced repo copy (iCloud xattrs can invalidate
+the signature; `build.sh` already works around this for the build itself).
+
 ## Build
 
 > **Build-environment requirement (important).** py2app needs a **framework** Python. The

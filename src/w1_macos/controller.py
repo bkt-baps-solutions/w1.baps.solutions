@@ -12,7 +12,7 @@ from typing import Callable
 import numpy as np
 
 from w1_core.audio.types import CHANNELS, SAMPLE_RATE
-from w1_core.config import CorrectionMode, W1Config
+from w1_core.config import W1Config
 from w1_core.pipeline import transcribe_and_correct
 
 _MIN_SAMPLES = 1600  # ~0.1s — ignore accidental taps
@@ -135,7 +135,3 @@ class Controller:
         """
         self._state = "idle"
         self._on_state("rejected")
-
-    # -- config ---------------------------------------------------------------
-    def set_mode(self, mode: str) -> None:
-        self.config.correction_mode = CorrectionMode(mode)

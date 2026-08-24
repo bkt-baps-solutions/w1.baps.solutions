@@ -32,7 +32,9 @@ N_BARS = 9
 BAR_W = 6
 STEP = 14
 PROFILE = [0.42, 0.76, 1.0, 0.60, 0.96, 0.60, 1.0, 0.76, 0.42]
-CANVAS_W, CANVAS_H = 256, 96
+# 256x48 matches the pill's 86x16 aspect, so the art fills it edge to edge. The canvas is
+# only flatter, not squashed — x geometry is unchanged, so dots stay round.
+CANVAS_W, CANVAS_H = 256, 48
 CY = CANVAS_H / 2.0
 SPAN = (N_BARS - 1) * STEP
 X0 = (CANVAS_W - SPAN) / 2.0  # centre the bar group horizontally
@@ -62,7 +64,7 @@ def listening_frame(level: int) -> str:
     amp = level / 11.0
     bars = []
     for i, p in enumerate(PROFILE):
-        height = 7.0 + 44.0 * amp * p
+        height = 3.5 + 22.0 * amp * p
         bars.append(_bar(X0 + i * STEP, height))
     return _svg("".join(bars))
 
@@ -70,33 +72,33 @@ def listening_frame(level: int) -> str:
 def _idle_line() -> str:
     w = 86
     x = (CANVAS_W - w) / 2.0
-    y = CY - 3
-    return _svg(f'<rect x="{x:.0f}" y="{y:.0f}" width="{w}" height="6" rx="3" fill="{WHITE}"/>')
+    y = CY - 1.5
+    return _svg(f'<rect x="{x:.0f}" y="{y:.1f}" width="{w}" height="3" rx="1.5" fill="{WHITE}"/>')
 
 
 def processing_frame(step: int) -> str:
     # Four dots around a small circle; the lit dot rotates.
     dots = []
-    r = 16
+    r = 8
     for i in range(4):
         ang = math.pi / 2 * i
         cx = CANVAS_W / 2.0 + r * math.cos(ang)
         cy = CY + r * math.sin(ang)
         opacity = 1.0 if i == step else 0.3
-        dots.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="{WHITE}" opacity="{opacity}"/>')
+        dots.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="2" fill="{WHITE}" opacity="{opacity}"/>')
     return _svg("".join(dots))
 
 
 def reject_frame(step: int) -> str:
     # A red ✕ that scales in over three frames (the waveform "animates to ✕").
     scale = (step + 1) / 3.0
-    half = 16 * scale
+    half = 8 * scale
     cx, cy = CANVAS_W / 2.0, CY
     stroke = (
         f'<line x1="{cx-half:.1f}" y1="{cy-half:.1f}" x2="{cx+half:.1f}" y2="{cy+half:.1f}" '
-        f'stroke="{RED}" stroke-width="6" stroke-linecap="round"/>'
+        f'stroke="{RED}" stroke-width="3" stroke-linecap="round"/>'
         f'<line x1="{cx-half:.1f}" y1="{cy+half:.1f}" x2="{cx+half:.1f}" y2="{cy-half:.1f}" '
-        f'stroke="{RED}" stroke-width="6" stroke-linecap="round"/>'
+        f'stroke="{RED}" stroke-width="3" stroke-linecap="round"/>'
     )
     return _svg(stroke)
 

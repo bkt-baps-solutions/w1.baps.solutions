@@ -50,8 +50,11 @@ except Exception:  # pragma: no cover
     _EASE = None
 
 _ASSETS = resource_dir() / "assets" / "widget" / "states"
-_WIDTH, _HEIGHT = 86, 26           # pill size on listen (trimmed so the waveform fills it)
-_CIRCLE = 44                       # resting state: a slightly elongated lozenge (not a full circle)
+# The pill rides inside the menu bar, so its height is bounded by the menu bar's (30pt on a
+# standard display). 16pt leaves even clearance above and below; the frame art is drawn on a
+# matching 256x48 canvas so it still fills the pill at this ratio.
+_WIDTH, _HEIGHT = 86, 16           # pill size on listen (trimmed so the waveform fills it)
+_CIRCLE = 28                       # resting state: a slightly elongated lozenge (not a full circle)
 _REJECT_HOLD = 0.7                 # seconds the red ✕ lingers before collapsing back to rest
 _SCREENSAVER_LEVEL = 1000          # NSScreenSaverWindowLevel — above normal app windows
 _NSBackingStoreBuffered = 2
@@ -84,10 +87,34 @@ class Widget:
         self._view = None
         self._build()
 
+    @staticmethod
+    def _menu_bar_slot() -> tuple[float, float]:
+        """Centre of the menu bar: (screen centre x, y that centres the pill in the bar).
+
+        The panel sits above the menu bar (screen-saver window level), so it overlays the empty
+        stretch between the app menus and the status items. visibleFrame's top inset is the real
+        menu bar height — NSStatusBar.thickness reports the older 22pt content height and would
+        leave the pill sitting low.
+        """
+        def inset(screen):
+            full, vis = screen.frame(), screen.visibleFrame()
+            # Height of the strip the menu bar occupies at the top of this screen.
+            return full, full.size.height - (vis.origin.y - full.origin.y + vis.size.height)
+
+        full, bar = inset(NSScreen.mainScreen())
+        if bar < _HEIGHT:
+            # Active display carries no menu bar (separate Spaces off) — it lives on screen 0.
+            screens = NSScreen.screens()
+            if screens:
+                full, bar = inset(screens[0])
+        if bar < _HEIGHT:  # menu bar auto-hidden — tuck the pill just below the top edge
+            bar = _HEIGHT + 8.0
+        cx = full.origin.x + full.size.width / 2.0
+        y = full.origin.y + full.size.height - bar + (bar - _HEIGHT) / 2.0
+        return cx, y
+
     def _build(self) -> None:
-        screen = NSScreen.mainScreen().frame()
-        self._cx = screen.size.width / 2.0
-        self._y = 96.0  # just above the Dock
+        self._cx, self._y = self._menu_bar_slot()
         w0 = _CIRCLE  # start life as a circle
         rect = ((self._cx - w0 / 2.0, self._y), (w0, _HEIGHT))
         style = NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
@@ -130,6 +157,10 @@ class Widget:
 
     def _resize_to(self, width: float) -> None:
         """Smoothly morph the window (glass + content) between the resting line and the pill."""
+        # Re-read the slot on every morph: with "Displays have separate Spaces" the menu bar
+        # follows the active display, so a position resolved once at startup strands the pill on
+        # whichever screen happened to be focused then.
+        self._cx, self._y = self._menu_bar_slot()
         frame = ((self._cx - width / 2.0, self._y), (width, _HEIGHT))
         NSAnimationContext.beginGrouping()
         ctx = NSAnimationContext.currentContext()

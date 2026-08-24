@@ -2,7 +2,7 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 import { Badge, Button, useToast } from "@pikoloo/darwin-ui";
 import readmeRaw from "../../README.md?raw";
 
-const REPO = "https://github.com/jp-sapio-health/w1.baps.solutions";
+const REPO = "https://github.com/bkt-baps-solutions/w1.baps.solutions";
 const DMG = `${REPO}/releases/latest/download/W1.dmg`;
 
 /* ---------------------------------------------------------------- navbar */
@@ -215,9 +215,11 @@ function Bento() {
           <Button variant="primary" size="lg" onClick={() => window.open(DMG, "_blank")}>
             Download W1.dmg
           </Button>
-          <span className="install-meta">233 MB · drag to Applications · right-click, Open</span>
+          <span className="install-meta">
+            233 MB · Apple Silicon · drag to Applications · right-click, Open
+          </span>
         </div>
-        <div className="install-or">or from source</div>
+        <div className="install-or">Intel Mac, or from source</div>
         <CodeBlock
           title="Terminal"
           lines={[
@@ -226,6 +228,12 @@ function Bento() {
             "./w1 app",
           ]}
         />
+        <p className="install-intel">
+          The .dmg is <strong>Apple Silicon only</strong> — it transcribes on the GPU through
+          Apple MLX, which needs an M-series chip. On an <strong>Intel Mac</strong> use the source
+          install above: it picks the faster-whisper CPU backend automatically, same models, same
+          modes, just slower.
+        </p>
         <p className="install-perms">
           Grant <strong>Microphone</strong>, <strong>Accessibility</strong> and{" "}
           <strong>Input Monitoring</strong> when asked. The menu bar shows ! until all three are

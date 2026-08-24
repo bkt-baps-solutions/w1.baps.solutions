@@ -164,14 +164,25 @@ class W1App(rumps.App):
         except Exception:
             pass
         try:
-            if getattr(sys, "frozen", False):  # packaged .app bundle
-                bundle = Path(sys.executable).resolve().parents[2]  # …/W1.app
+            # Relaunch through the bundle whenever we are inside one. sys.frozen is only set by
+            # py2app, so a source install launched from a hand-built .app used to fall through to
+            # the dev branch below — which quit this instance and started a process that could not
+            # import its own dependencies, leaving no W1 at all.
+            bundle = next((p for p in Path(sys.executable).resolve().parents
+                           if p.suffix == ".app"), None)
+            if bundle is not None:
                 subprocess.Popen(["/usr/bin/open", "-n", str(bundle)], start_new_session=True)
             else:  # dev: re-exec the CLI module against the live source tree
+                src = str(_REPO_ROOT / "src")
+                inherited = os.environ.get("PYTHONPATH", "")
+                # Prepend, never replace: the inherited PYTHONPATH is what carries site-packages.
+                path = src if src in inherited.split(os.pathsep) else os.pathsep.join(
+                    p for p in (src, inherited) if p
+                )
                 subprocess.Popen(
                     [sys.executable, "-m", "w1_macos.cli", "app"],
                     cwd=str(_REPO_ROOT),
-                    env={**os.environ, "PYTHONPATH": str(_REPO_ROOT / "src")},
+                    env={**os.environ, "PYTHONPATH": path},
                     start_new_session=True,
                 )
         finally:

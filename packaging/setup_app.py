@@ -99,7 +99,7 @@ OPTIONS = {
     "packages": RUNTIME_PACKAGES,
     "includes": ["pyperclip"],
     "excludes": EXCLUDES,
-    "iconfile": str(ROOT / "assets" / "menubar" / "idle.png"),
+    "iconfile": str(ROOT / "assets" / "W1.icns"),  # full icon set; menubar PNGs are templates
     "resources": [str(ROOT / "assets")],
 }
 

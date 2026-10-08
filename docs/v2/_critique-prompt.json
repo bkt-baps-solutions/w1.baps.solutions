@@ -1,0 +1,65 @@
+{
+ "verdict": "fix-first",
+ "issues": [
+  {
+   "severity": "blocker",
+   "issue": "Em-dashes present in the prompt, which its own Do-nots forbid. At least two: \"`src/w1_core/correction/rules.py` \u2014 `apply_terminology(text, mode)` iterates...\" and \"`src/w1_core/correction/transliterate.py` \u2014 127 lines, complete and working\" (both in \"The multi-mode system that was deleted\").",
+   "fix": "Replace both em-dashes with a colon or a period, then sweep the whole document for U+2014 before shipping. Keep the en-dash in \"U+0A80\u2013U+0AFF\" (correct usage, not an em-dash)."
+  },
+  {
+   "severity": "blocker",
+   "issue": "Five of the seven modes (Prompt Engineer, Polish, Formal, Street, Summarisation) are model-driven text rewriting, but w1 has no text-generation capability at all and the prompt never says so. Verified: pyproject.toml runtime deps are pydantic 2.13.4 / rapidfuzz 3.14.5 / jellyfish 1.2.1 / pyyaml 6.0.3 / numpy 2.4.6, the optional extras are whisper backends only, and grep for anthropic|openai|llama|mlx_lm|ollama across src/ and scripts/ returns nothing. The prompt simultaneously demands \"where it runs (on-device or otherwise)\" per mode, says \"Where the brief is silent, ask rather than invent\", forbids quiet network calls, and imposes SOR-2 on new deps. The implementer cannot produce output requirement 2 without either guessing an inference engine or stalling.",
+   "fix": "Add to Context: \"w1 today contains no text-generation model. The correction chain is purely deterministic (rapidfuzz + jellyfish). Every model-driven mode requires a new inference layer that does not exist.\" Then require the architecture delta to state the fork as a user decision: local (mlx-lm or llama.cpp with a named model, bundle-size and latency cost) vs API (network, contradicts the on-device promise at src/w1_macos/settings_window.py:168 and the pyproject description \"fully on-device\"). Add it to the Conflict-resolution open questions."
+  },
+  {
+   "severity": "blocker",
+   "issue": "The Polish mode canonical fixture is required verbatim but never supplied. Examples says \"The user supplied a before/after pair of transformed text. Use it verbatim as the canonical fixture for Polish mode, both in the spec and as a test\" \u2014 the pair appears nowhere in the prompt. Same defect for Prompt Engineer mode: the raw brief supplied a full system prompt, but the draft carries only its ten section headings and then orders the implementer to \"State the Prompt Engineer mode system prompt in full ... as shippable product content\", forcing re-authoring of the exact text the prompt elsewhere says to preserve.",
+   "fix": "Inline both verbatim in Examples and references: the Polish before/after pair and the user's full prompt-engineering system prompt. If they cannot be inlined, replace \"use it verbatim\" with an explicit fetch step (\"retrieve the Polish example and the Prompt Engineer system prompt from the original brief before writing the mode spec; do not author substitutes\")."
+  },
+  {
+   "severity": "major",
+   "issue": "\"Need to make it way more useable\" is dropped. The words useable/usable appear nowhere in the draft; Task is only (1) mode system and (2) whole app UI. Nothing states the current usability deficit or sets an acceptance bar, though the recon has the facts: a 5-item rumps menu, a 520x336 settings window with exactly three controls, no history, no visible transcript, no undo.",
+   "fix": "Add a third Task item: \"3. Raise usability. The current surface is a 5-item menu bar plus a 3-control settings window, with no history, no visible output, and no way to see or undo what was inserted. Name each usability deficit and state what the v2 UI does about it.\" Add a matching acceptance line to Output requirements."
+  },
+  {
+   "severity": "major",
+   "issue": "src/w1_data/diacritics.json is missed entirely, and it is the exact implementation of the user's hardest contract. It is a 12-entry stripping map (\u1e41\u2192m, \u1e6d\u2192t, \u1e63\u2192sh, \u015b\u2192sh, \u1e47\u2192n, \u012b\u2192i, \u016b\u2192u, \u1e5b\u2192r, \u1e45\u2192n, \u1e0d\u2192d, \u0127\u2192h, \u00f1\u2192n, deliberately excluding \u0101), it is one of the 5 permitted w1_data datasets, and loader.py:66 loads it into RuleData.diacritics \u2014 but no correction step consumes it (engine.py is cleanup, mask, fuzzy, unmask only). It is a THIRD orphan, not two. The draft omits it from the Data list and points the \u0101-only chokepoint solely at transliterate.py, which handles Gujarati script to Roman, not already-Romanised diacritics to \u0101-only. Both paths are needed to honour \"no other letter carries a diacritic\".",
+   "fix": "Add diacritics.json (12 entries) to the Data bullet; list it as the third orphan (loaded at loader.py:66, consumed by nothing); specify the \u0101-only chokepoint as covering both inputs (Gujarati script via transliterate.py, Roman diacritics via the diacritics map). Note that the deleted CorrectionMode.dictation docstring on main listed \"diacritics\" as part of the dictation chain, which is when the wiring was lost."
+  },
+  {
+   "severity": "major",
+   "issue": "Join meeting mode and Meeting mode's system-audio capture are posed as implementation details when they are architectural forks that collide with the stated constraints. \"How Join meeting mode attaches to Teams, Google Meet and Zoom\" has no local-only answer; a bot joining a call is a hosted-service pattern. Conflict rule 4 covers only \"a Wispr Flow behaviour requires a server\", and joining meetings is not a Wispr Flow behaviour, so nothing in the prompt reaches it. Separately, packaging/w1.entitlements grants only com.apple.security.device.audio-input; capturing incoming meeting audio also needs ScreenCaptureKit or CoreAudio process taps (macOS 14.2+) with Screen Recording consent, or a virtual device.",
+   "fix": "Broaden conflict rule 4 to \"any required behaviour\", not just Wispr Flow behaviours. Add the entitlement fact to Context and require the delta to name the system-audio mechanism plus the new entitlement/TCC prompt. For Join meeting, require an explicit fork (local automation of the desktop clients vs a hosted joiner) with the privacy consequence stated, marked as a user decision."
+  },
+  {
+   "severity": "major",
+   "issue": "Mode triggers are demanded but undecidable. Output requirement 1 requires \"trigger (hotkey or menu)\" for all seven modes; the brief supplies exactly one (Opt+1 for Polish) and the existing config has only hotkey '<alt_r>' with push-to-talk/toggle. The stance rule \"Where the brief is silent, ask rather than invent\" then blocks filling the other six, so the implementer either invents six bindings against instruction or stalls mid-spec.",
+   "fix": "Resolve it in the prompt: either state a convention as an explicit proposal to confirm (\"Opt+1 is fixed by the brief; propose Opt+2..Opt+N for the remaining modes and flag as pending confirmation\"), or move mode triggers into the Conflict-resolution open questions and drop \"trigger\" from the per-mode required fields."
+  },
+  {
+   "severity": "major",
+   "issue": "Internal contradiction between the brief's headline requirement and a Do-not. The brief says \"make it serve the same function as wispr flow\", but the Do-nots say \"Do not invent modes, settings, or features beyond the seven modes and the surfaces named above.\" Any Wispr Flow function not enumerated (custom dictionary/snippets, per-app tone, mid-utterance auto-edits, latency parity, onboarding) is foreclosed by the Do-not while being mandated by the Task.",
+   "fix": "Separate shipping from proposing: \"Do not ship modes, settings, or features beyond the seven modes and the named surfaces. Where Wispr Flow does something w1 does not and it is not on that list, record it in a separate 'parity gaps' section for the user to approve; do not build it unasked.\""
+  },
+  {
+   "severity": "minor",
+   "issue": "Two factual errors that would send the implementer down a wrong path. (a) Constraints claims scripts/ingest_glossary_pdf.py and scripts/sync_rules_from_ts.py \"both hardcode paths into ~/Desktop/Repositories/Mandir/ and therefore cannot regenerate their data as written\" \u2014 only ingest_glossary_pdf.py:22 hardcodes an absolute Desktop path; sync_rules_from_ts.py:32-33 derives _REPOS = _HERE.parents[2] and exposes an overridable DEFAULT_SRC, so it is relocatable and only needs the Mandir source located. (b) Context cites \"data/terminology_rules.json\"; the real path is src/w1_data/terminology_rules.json.",
+   "fix": "Name only ingest_glossary_pdf.py as hardcoded and note sync_rules_from_ts.py resolves its source relative to the script. Fix the path to src/w1_data/terminology_rules.json."
+  },
+  {
+   "severity": "minor",
+   "issue": "The \"zero-storage privacy promise\" is overstated, manufacturing a decision the repo already made. The actual footer at src/w1_macos/settings_window.py:168 reads \"100% on-device. No audio or transcript is stored unless you choose to.\" \u2014 it already permits opt-in storage, and docs/UI-PLAN.md conflict 2 already prescribes \"an explicit, opt-in, local-only store\". The draft raises this as unresolved in Output requirement 2, checklist step 10, and the open questions.",
+   "fix": "Quote the footer verbatim in Context and reframe the work as implementing the opt-in local store the copy already allows (per UI-PLAN conflict 2), not as a conflict to escalate."
+  },
+  {
+   "severity": "minor",
+   "issue": "Three small preservation gaps against the raw brief. (a) The screenshot has two tabs, \"Your usage\" and \"Your voice\"; the draft transcribes and requires only \"Your usage\", silently dropping the second. (b) \"live transcript with characters\" is glossed as \"(speaker labels)\" \u2014 a reasonable reading, but an unflagged interpretation that is absent from the open-questions list. (c) The three summarisation destinations are never mapped to real paths; \"jay@osx.earth\" is email-shaped while the Vault domains are /Users/jaypatel/Vault/osx.earth, /baps.solutions and /sapio.health, and no folder convention is given for \"which folder it gets saved to in vault\".",
+   "fix": "(a) Note the \"Your voice\" tab and state whether it is in scope. (b) Keep the speaker-label reading but add \"characters\" to the open questions. (c) Map the three destinations to their Vault paths and require the delta to specify the per-meeting folder and filename convention under each."
+  },
+  {
+   "severity": "minor",
+   "issue": "Two stated repo measurements are off, which undercuts the \"real numbers only\" posture: \"roughly 2,481 lines of Python\" (actual 2,337 across src/**/*.py excluding __pycache__) and \"one 372-line stylesheet, src/app/globals.css\" (actual 371 lines).",
+   "fix": "Correct to ~2,337 and 371, or drop both figures since neither is load-bearing."
+  }
+ ]
+}

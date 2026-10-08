@@ -1,0 +1,75 @@
+{
+ "verdict": "fix-first",
+ "issues": [
+  {
+   "severity": "blocker",
+   "issue": "Step 14 states bmad-generate-project-context outputs to `{PR}/project-context.md`. It does not. `steps/step-01-discover.md:126` and `steps/step-03-complete.md:138,231` all write to `{output_folder}/project-context.md`, and `output_folder` is `_bmad-output` (bmm/config.yaml:16, core/config.yaml:10), so the real path is `{PR}/_bmad-output/project-context.md`. This matters because bmad-spec's persistent_facts is the NON-glob `file:{project-root}/project-context.md` (bmad-spec/customize.toml:26), so bmad-spec will never load the file at its actual location. bmad-prd, bmad-architecture, bmad-create-story and bmad-dev-story use the glob form `file:{project-root}/**/project-context.md` and would match. Section 5's entire enforcement mechanism for CLAUDE.md standing rules rests on this file being loaded.",
+   "fix": "Correct the stated output path to `{PR}/_bmad-output/project-context.md`. For bmad-spec, either add `_bmad/custom/bmad-spec.toml` with `persistent_facts = [\"file:{project-root}/_bmad-output/project-context.md\"]` (arrays append, so the broken default entry is harmless), or place a copy at `{PR}/project-context.md`. Verify with `resolve_customization.py --skill <skill-root> --key workflow` before relying on it."
+  },
+  {
+   "severity": "blocker",
+   "issue": "Step 14 is ordered after Steps 6, 9 and 10. persistent_facts are loaded once at activation (bmad-prd SKILL.md 'On Activation' step 2; bmad-generate-project-context 'Step 3: Load Persistent Facts'), so bmad-prd (Step 6), bmad-architecture (Step 9) and bmad-spec (Step 10) all run before project-context.md exists. The standing rules the plan relies on to constrain them (ask-before-commit, exact pins, SOR-2, no PHI, the a-macron-only diacritic rule, no time estimates) are absent from every planning-phase run. The recon flagged this exact gap as an open question and the plan does not answer it.",
+   "fix": "Move bmad-generate-project-context to run immediately after Step 1 (bmad-document-project), before the brief. It is catalogued `anytime` so nothing blocks it, and it takes `{project_knowledge}` as scanning input which Step 1 has just populated. Re-run or update it after Step 9 if the spine adds invariants worth pinning."
+  },
+  {
+   "severity": "blocker",
+   "issue": "Step 11 invokes bmad-shard-doc, which executes `npx @kayvan/markdown-tree-parser explode` (bmad-shard-doc/SKILL.md:8,40,105). npx fetches and executes an unpinned third-party npm package. Section 5 asserts 'No `npm` or `pip` install occurs anywhere in Phases 1 to 3', and Step 11 is in Phase 3. The plan contradicts its own SOR-2 claim.",
+   "fix": "Either subject `@kayvan/markdown-tree-parser` to the SOR-2 gate in Step 3's research report (publish age over one month, weekly downloads, install-script audit, exact version) and invoke it pinned as `npx @kayvan/markdown-tree-parser@<version>`, or drop bmad-shard-doc entirely and satisfy the epics-skill glob by hand-feeding the PRD path at the step-01 halt, which the plan already relies on for the architecture spine."
+  },
+  {
+   "severity": "blocker",
+   "issue": "Step 11 does not address bmad-shard-doc Step 6, which asks what to do with the original document and marks Delete as 'recommended', with the skill stating 'Keeping both the original and sharded versions defeats the purpose of sharding'. Accepting that recommendation deletes `prd.md` from the run folder. bmad-prd's Create-intent resume scan reads `prd.md` frontmatter `status` to find in-progress runs (SKILL.md 'On Activation' step 5), and the Update intent source-extracts against `prd.md`, addendum and `.memlog.md`. Deleting it breaks resume, breaks the Update path, and orphans the memlog derivation model.",
+   "fix": "State explicitly in Step 11 that the answer at the disposal prompt is `[k]` keep, deliberately against the skill's recommendation, because the sharded copy is a discovery shim for the epics glob and `prd.md` remains the canonical artifact of the run folder."
+  },
+  {
+   "severity": "major",
+   "issue": "Step 11 claims sharding produces `{PA}/prd-w1/`, but bmad-shard-doc Step 2 defaults the destination to 'same location as source file, folder named after source file without .md extension'. Source is `{PA}/prds/prd-w1-{date}/prd.md`, so the default destination is `{PA}/prds/prd-w1-{date}/prd/`. That index.md sits three levels below planning_artifacts and does NOT match the epics skill's `{planning_artifacts}/*prd*/index.md` pattern (step-01-validate-prerequisites.md:59-63). Accepting the default silently fails to deliver the glob fix the step exists for.",
+   "fix": "Add an explicit instruction to Step 11: at the destination prompt, reject the default and enter `{PA}/prd-w1/`. Note the same applies if the architecture spine is ever sharded."
+  },
+  {
+   "severity": "major",
+   "issue": "Step 8 says bmad-prd validate intent 'Produces: review-{slug}.md and reconcile-{slug}.md ... and flips `status` to `final`'. The skill says Validate is 'Critique without changing' (SKILL.md, Intent Modes). Only Finalize step 7 sets `status: final`, and Finalize runs under Create/Update, not Validate. `reconcile-{slug}.md` is produced by Finalize step 2 (Input reconciliation), also Create/Update only. Validate produces review-{slug}.md plus a synthesis HTML+markdown report. Step 6 (Create) already runs the Reviewer Gate at Finalize step 3 and sets status final at step 7, so Step 8 as written both duplicates work already done and claims an effect it cannot have.",
+   "fix": "Rewrite Step 8's Produces line to: review-{slug}.md per reviewer plus a synthesis HTML and markdown report, no document changes, status untouched. Note that Step 6 already produced review-*.md and reconcile-*.md and set status: final."
+  },
+  {
+   "severity": "major",
+   "issue": "Consequence of the above: Step 6 finalizes the PRD before Step 7 (bmad-ux) runs, and Step 8 is Validate, which cannot write. There is therefore no path for UX-discovered gaps to reach the PRD. This is a live risk here because the tracker design system is a hard constraint that will surface real requirement gaps (mono mode, reduced-motion behaviour, resizable rail, permission onboarding states) once EXPERIENCE.md is written.",
+   "fix": "Make Step 8 the bmad-prd Update intent, not Validate, so UX findings reconcile back into prd.md and addendum.md and the PRD re-finalizes. Run Validate only afterwards if an independent critique is wanted, or fold it in as a finalize_reviewers entry."
+  },
+  {
+   "severity": "major",
+   "issue": "The branch base for the SOR-1 worktree fleet is never decided. `main` is at 9efd0ef (2026-06-22) and `wip/settings-ui` at be59260 carries the entire multi-mode removal, settings window, login item and 948-term master glossary in one 34-file commit. Section 5 mentions this only as 'a decision to confirm before the first worktree is cut'. Twelve epic worktrees cannot be cut off an ambiguous base, and D1's disposition of the mode system is entangled with whether wip becomes main.",
+   "fix": "Promote this to a decision point (call it D11) blocking E1: options are (a) merge or fast-forward wip/settings-ui into main and branch every worktree from main, (b) keep wip as the integration branch and branch from it, (c) split the 34-file wip commit before merging. Recommend (a) once D1 confirms the removal is deliberate, since the plan already treats the wip state as canonical throughout."
+  },
+  {
+   "severity": "major",
+   "issue": "D4 and E3 set a p99 gate from key-release to text-inserted benchmarked against Wispr's 700ms, but w1's pipeline is record-then-transcribe: controller.py buffers the whole utterance, then calls transcribe_and_correct once. End-to-end latency therefore scales with utterance length, so a fixed p99 is unattainable by construction. Wispr's 700ms is a streamed cloud pipeline. PLAN.md's Phase 2 live streaming insertion was never built, and E7 introduces chunked decode only for meetings.",
+   "fix": "Either express the E3 release criterion as real-time factor plus fixed overhead (decode RTF against a fixed post-release budget for correction, clipboard swap, paste and restore), or move chunked/streaming decode from E7 into E3 so dictation shares it. Say which in D4 rather than leaving 'a hard p99 gate' undefined."
+  },
+  {
+   "severity": "major",
+   "issue": "D0's recommended option (b), a second BMAD install inside w1.baps.solutions, is under-specified in two ways the recon did not cover. First, the installer materialises 46 skill directories to `.claude/skills/bmad-*`, so w1 would carry a second full set alongside the Vault-root set; the plan does not say how skill-name resolution behaves when both are visible, nor which `_bmad/` a given invocation resolves `{project-root}` against (resolve_config.py requires the project-root argument to contain `_bmad/`). Second, w1.baps.solutions is a live git repo with a clean tree, and the install adds `_bmad/`, `.claude/skills/` and later `_bmad-output/` with no stated gitignore decision.",
+   "fix": "Before recommending (b), state the resolution rule you will use (always pass `--project-root /Users/jaypatel/Vault/baps.solutions/w1.baps.solutions` explicitly) and the gitignore decision (commit `_bmad/custom/` and `.claude/skills/`, ignore `_bmad-output/`, or ignore all three). Verify skill precedence empirically with one `bmad-help` invocation from inside the w1 directory before Step 1 runs."
+  },
+  {
+   "severity": "minor",
+   "issue": "The epic table is captioned 'Dependency order runs top to bottom', but E12 is listed last while its own scope text says 'Must run early enough that E7's new permission is validated on a signed build rather than at the end.' The table's stated ordering contract contradicts the row it contains.",
+   "fix": "Either split E12 into E12a (signing, notarization, entitlements including system audio, first-run permission wizard) placed before E7, and E12b (distribution, docs correction) at the end, or drop the top-to-bottom claim and add an explicit dependency column."
+  },
+  {
+   "severity": "minor",
+   "issue": "E6 contains an unresolved decision stated as one: 'Mixed mode needs its own strategy ... decide whether w1 does a single-pass Gujarati decode plus transliteration, or a segment-level detect.' This materially changes E6's scope and touches the a-macron-only egress invariant, but it is buried in an epic row rather than raised in the D-list where Jay can settle it.",
+   "fix": "Promote it to a decision point alongside D1, with the two options and a recommendation. The recon's Wispr finding that language is detected per session and cannot alternate mid-sentence is the relevant precedent and should be cited in the options."
+  },
+  {
+   "severity": "minor",
+   "issue": "E2 says 'Port the 13 shadcn primitives and the 16-file `view/` primitive layer.' Roughly half the view layer is tracker-domain-specific and meaningless in w1: stage-badge, priority-pill, priority-dot, blocked-pill, urgency-chip, project-filter-chips, avatar-stack and sort-select all encode project-tracking concepts. Porting them wholesale imports the two competing colour registries the recon flagged as an open question.",
+   "fix": "Scope E2 to the material and layout primitives (tile, kpi-card, empty-state, section-label, tint-badge, pastel-pill, progress-bar, user-avatar) plus the glass, tint and dot-grid recipes, and state explicitly that the tracker-domain primitives are dropped rather than ported."
+  },
+  {
+   "severity": "minor",
+   "issue": "The golden corpora are assigned twice and to the wrong instrument. E1 says 'Populate the empty `tests/data/` with the frozen 20-sentence golden set and the pure-English do-not-corrupt corpus', while Step 16e assigns bmad-qa-generate-e2e-tests to 'the golden corpora'. That skill's own catalog entry scopes it to end-to-end tests for existing features and explicitly states it is not for code review or story validation; a frozen correction-fixture corpus is not an E2E suite.",
+   "fix": "Keep the corpora in E1 as pytest fixtures. Retarget Step 16e's bmad-qa-generate-e2e-tests to what it fits: the dictation loop end to end, the insertion long-tail targets from E3, and the zero-network-egress assertion on the local-only path from D3."
+  }
+ ]
+}

@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>w1 · Speak. It types. In your words.</title>
+<meta name="description" content="w1 is a Mac dictation tool that types what you say, in the vocabulary you actually use. Transcription runs on your Mac with Whisper on Apple MLX." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%230a0a0a' d='M25 0H46Q50 0 50 4V25L25 50H4Q0 50 0 46V25Z'/%3E%3Cpath fill='%230a0a0a' d='M75 50H96Q100 50 100 54V75L75 100H54Q50 100 50 96V75Z'/%3E%3C/svg%3E" />
+<style>
+/* ============================================================
+   w1.osx.earth
+   Design language ported from tracker.baps.solutions:
+   neutral two-grey palette + one blue, warm-grey dark theme,
+   hairline borders, frosted glass instead of shadows,
+   an 18px dot lattice behind everything, pill-heavy geometry.
+   Single file. No external fonts, scripts or stylesheets.
+   ============================================================ */
+
+/* ---------- reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+img, svg { display: block; max-width: 100%; }
+button, input, select { font: inherit; color: inherit; }
+a { color: inherit; }
+
+/* ---------- tokens: light (bare :root, always defined) ---------- */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --destructive: 0 84.2% 60.2%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 221.2 83.2% 53.3%;
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  --glass-bg: rgb(255 255 255 / 0.55);
+  --glass-blur: blur(14px) saturate(1.5);
+  --glass-inset: inset 0 1px 0 rgb(255 255 255 / 0.5);
+  --pill-bg: rgb(255 255 255 / 0.55);
+  --pill-border: rgb(0 0 0 / 0.07);
+  --dot: rgb(156 163 175 / 0.18);
+  --dot-hot: rgb(156 163 175 / 0.55);
+  --code-bg: 240 4.8% 97%;
+
+  --page: 1080px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
+
+/* ---------- tokens: dark via system preference (explicit light still wins) ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: 50 3% 10%;
+    --foreground: 50 5% 93%;
+    --card: 50 3% 12.5%;
+    --card-foreground: 50 5% 93%;
+    --popover: 50 3% 11%;
+    --primary: 217.2 70% 62%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 50 3% 18%;
+    --secondary-foreground: 50 5% 93%;
+    --muted: 50 3% 18%;
+    --muted-foreground: 50 4% 68%;
+    --accent: 50 3% 18%;
+    --destructive: 0 55% 52%;
+    --border: 50 3% 20%;
+    --input: 50 3% 20%;
+    --ring: 217.2 70% 62%;
+
+    --glass-bg: rgb(30 30 27 / 0.5);
+    --glass-inset: inset 0 1px 0 rgb(255 255 255 / 0.07);
+    --pill-bg: rgb(255 255 255 / 0.09);
+    --pill-border: rgb(255 255 255 / 0.12);
+    --dot: rgb(156 163 175 / 0.08);
+    --dot-hot: rgb(156 163 175 / 0.3);
+    --code-bg: 50 3% 15%;
+
+    color-scheme: dark;
+  }
+}
+
+/* ---------- tokens: dark via explicit choice ---------- */
+:root[data-theme="dark"] {
+  --background: 50 3% 10%;
+  --foreground: 50 5% 93%;
+  --card: 50 3% 12.5%;
+  --card-foreground: 50 5% 93%;
+  --popover: 50 3% 11%;
+  --primary: 217.2 70% 62%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 50 3% 18%;
+  --secondary-foreground: 50 5% 93%;
+  --muted: 50 3% 18%;
+  --muted-foreground: 50 4% 68%;
+  --accent: 50 3% 18%;
+  --destructive: 0 55% 52%;
+  --border: 50 3% 20%;
+  --input: 50 3% 20%;
+  --ring: 217.2 70% 62%;
+
+  --glass-bg: rgb(30 30 27 / 0.5);
+  --glass-inset: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  --pill-bg: rgb(255 255 255 / 0.09);
+  --pill-border: rgb(255 255 255 / 0.12);
+  --dot: rgb(156 163 175 / 0.08);
+  --dot-hot: rgb(156 163 175 / 0.3);
+  --code-bg: 50 3% 15%;
+
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+/* overflow-x: clip (not hidden) so position: sticky keeps working on the nav */
+html, body { max-width: 100%; }
+body { overflow-x: clip; }
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- dot lattice + cursor spotlight ---------- */
+.dot-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  --mx: -999px; --my: -999px;
+  background-image: radial-gradient(var(--dot) 0.8px, transparent 1.1px);
+  background-size: 18px 18px;
+  background-attachment: fixed;
+}
+.dot-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--dot-hot) 1.6px, transparent 2px);
+  background-size: 18px 18px;
+  background-attachment: fixed;
+  -webkit-mask-image: radial-gradient(120px circle at var(--mx) var(--my), black 15%, transparent 95%);
+  mask-image: radial-gradient(120px circle at var(--mx) var(--my), black 15%, transparent 95%);
+}
+.shell { position: relative; z-index: 1; }
+
+/* ---------- glass materials ---------- */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid hsl(var(--border));
+}
+.glass-pill {
+  background: var(--pill-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--pill-border);
+}
+
+/* ---------- nav ---------- */
+.nav-outer { position: sticky; top: 0; z-index: 30; padding: 12px 16px 0; }
+.nav-pill {
+  max-width: var(--page);
+  margin: 0 auto;
+  border-radius: var(--radius-2xl);
+  padding: 9px 12px 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  backdrop-filter: blur(24px) saturate(1.8);
+  border: 1px solid hsl(var(--border) / 0.8);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.03), var(--glass-inset);
+}
+.wordmark { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.mark { width: 22px; height: 22px; color: hsl(var(--foreground)); }
+.wordmark b { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+.wordmark span { font-size: 12px; color: hsl(var(--muted-foreground)); font-weight: 400; }
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-links a {
+  font-size: 12.5px; font-weight: 500; text-decoration: none;
+  color: hsl(var(--muted-foreground));
+  padding: 6px 10px; border-radius: 999px;
+  transition: color .15s ease, background-color .15s ease;
+}
+.nav-links a:hover { color: hsl(var(--foreground)); background: hsl(var(--secondary)); }
+.nav-right { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; border: 1px solid hsl(var(--border)); background: transparent;
+  cursor: pointer; color: hsl(var(--muted-foreground));
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.icon-btn:hover { color: hsl(var(--foreground)); background: hsl(var(--secondary)); }
+.icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }
+[data-theme="dark"] .sun, .moon { display: none; }
+[data-theme="dark"] .moon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sun { display: none; }
+  :root:not([data-theme="light"]) .moon { display: block; }
+  :root[data-theme="light"] .sun { display: block; }
+  :root[data-theme="light"] .moon { display: none; }
+}
+@media (max-width: 860px) { .nav-links a.opt { display: none; } }
+@media (max-width: 560px) { .nav-links { display: none; } }
+
+/* ---------- layout ---------- */
+.wrap { max-width: var(--page); margin: 0 auto; padding: 0 20px; }
+section { padding: 72px 0; }
+@media (max-width: 720px) { section { padding: 52px 0; } }
+.eyebrow {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: hsl(var(--muted-foreground) / 0.8);
+}
+h2 {
+  font-size: clamp(26px, 3.4vw, 34px); line-height: 1.15; letter-spacing: -0.025em;
+  font-weight: 600; margin-top: 10px;
+}
+h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.lede { font-size: 15px; color: hsl(var(--muted-foreground)); max-width: 62ch; margin-top: 12px; line-height: 1.65; }
+.section-head { margin-bottom: 28px; }
+@media (max-width: 820px) { br.hide-sm { display: none; } }
+p.small { font-size: 13px; color: hsl(var(--muted-foreground)); }
+
+/* ---------- badges, buttons ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  border-radius: 999px; padding: 5px 12px 5px 10px;
+  font-size: 11.5px; font-weight: 500; letter-spacing: 0.01em;
+  border: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground));
+  background: var(--pill-bg);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.dot-live { width: 6px; height: 6px; border-radius: 999px; background: hsl(var(--primary)); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 38px; padding: 0 18px; border-radius: var(--radius-lg);
+  font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer;
+  border: 1px solid transparent; transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.btn-primary:hover { background: hsl(var(--primary) / 0.9); }
+.btn-outline { border-color: hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.btn-outline:hover { background: hsl(var(--muted)); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }
+
+/* colour-mix chips: one hex drives both themes */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 999px; padding: 3px 9px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em;
+  background: color-mix(in srgb, var(--tag) 12%, transparent);
+  color: var(--tag);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tag {
+    background: color-mix(in srgb, var(--tag) 26%, transparent);
+    color: color-mix(in srgb, var(--tag) 52%, white);
+  }
+}
+:root[data-theme="dark"] .tag {
+  background: color-mix(in srgb, var(--tag) 26%, transparent);
+  color: color-mix(in srgb, var(--tag) 52%, white);
+}
+
+/* ---------- cards ---------- */
+.card {
+  border-radius: var(--radius-2xl);
+  border: 1px solid hsl(var(--border));
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  padding: 20px;
+  transition: border-color .2s ease;
+}
+@media (hover: hover) { .card:hover { border-color: hsl(var(--foreground) / 0.18); } }
+.panel {
+  border-radius: var(--radius-3xl);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  overflow: hidden;
+}
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .g4, .g2 { grid-template-columns: 1fr; } }
+
+/* ---------- hero ---------- */
+.hero { padding-top: 64px; padding-bottom: 40px; text-align: center; }
+.hero h1 {
+  font-size: clamp(38px, 6.6vw, 64px);
+  line-height: 1.04; letter-spacing: -0.035em; font-weight: 600;
+  margin: 18px auto 0; max-width: 16ch;
+}
+.hero .lede { margin: 18px auto 0; text-align: center; font-size: 16px; max-width: 60ch; }
+.cta-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.cta-note {
+  margin-top: 14px; font-size: 12px; color: hsl(var(--muted-foreground));
+  display: inline-flex; align-items: center; gap: 7px; justify-content: center;
+}
+.hero-strap {
+  margin: 30px auto 0; max-width: 70ch;
+  font-size: 14.5px; color: hsl(var(--foreground) / 0.78); letter-spacing: -0.01em;
+}
+
+/* ---------- dictation demo ---------- */
+.demo { position: relative; padding: 8px; }
+.demo-chrome {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid hsl(var(--border));
+}
+.tl { display: flex; gap: 6px; }
+.tl i { width: 10px; height: 10px; border-radius: 999px; background: hsl(var(--border)); display: block; }
+.demo-app {
+  font-size: 12px; color: hsl(var(--muted-foreground)); font-weight: 500;
+  margin-left: 4px;
+}
+.demo-body {
+  min-height: 176px; padding: 22px 22px 64px;
+  font-size: 15px; line-height: 1.7; letter-spacing: -0.005em;
+}
+@media (max-width: 620px) { .demo-body { min-height: 210px; padding: 18px 16px 62px; font-size: 14px; } }
+.demo-body .hl {
+  border-radius: 4px;
+  background: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, hsl(var(--primary)) 45%, transparent);
+}
+.caret {
+  display: inline-block; width: 2px; height: 1.05em; vertical-align: -0.18em;
+  background: hsl(var(--primary)); margin-left: 1px;
+  animation: blink 1.05s steps(1, end) infinite;
+}
+@keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.pill-dock { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; }
+.w1-pill {
+  display: inline-flex; align-items: center; gap: 12px;
+  border-radius: 999px; padding: 8px 16px 8px 12px;
+  background: var(--pill-bg);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid var(--pill-border);
+  box-shadow: var(--glass-inset);
+  max-width: calc(100% - 24px);
+}
+.wave { display: flex; align-items: center; gap: 3px; height: 18px; }
+.wave i {
+  display: block; width: 2.5px; border-radius: 999px; height: 4px;
+  background: hsl(var(--primary));
+  animation: bob 900ms ease-in-out infinite;
+}
+.wave i:nth-child(1) { animation-delay: 0ms; }
+.wave i:nth-child(2) { animation-delay: 90ms; }
+.wave i:nth-child(3) { animation-delay: 180ms; }
+.wave i:nth-child(4) { animation-delay: 270ms; }
+.wave i:nth-child(5) { animation-delay: 120ms; }
+.wave i:nth-child(6) { animation-delay: 330ms; }
+.wave i:nth-child(7) { animation-delay: 60ms; }
+.wave i:nth-child(8) { animation-delay: 240ms; }
+.wave i:nth-child(9) { animation-delay: 150ms; }
+@keyframes bob { 0%, 100% { height: 4px; opacity: .55; } 50% { height: 16px; opacity: 1; } }
+.w1-pill.idle .wave i { animation-play-state: paused; height: 4px; opacity: .4; }
+.pill-state { font-size: 12px; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; }
+.pill-mode {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  color: hsl(var(--muted-foreground));
+  border-left: 1px solid hsl(var(--border)); padding-left: 10px; white-space: nowrap;
+}
+.kbd {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  border: 1px solid hsl(var(--border)); border-bottom-width: 2px;
+  border-radius: var(--radius-md); padding: 2px 6px;
+  background: hsl(var(--secondary)); color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+.demo-legend {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  margin-top: 16px; font-size: 12px; color: hsl(var(--muted-foreground));
+}
+
+/* ---------- modes ---------- */
+.mode-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mode-icon { color: hsl(var(--muted-foreground)); }
+.mode-body { margin-top: 10px; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.io { margin-top: 14px; border-top: 1px solid hsl(var(--border) / 0.7); padding-top: 12px; }
+.io .row { display: flex; gap: 8px; align-items: flex-start; }
+.io .row + .row { margin-top: 9px; }
+.io .lbl {
+  flex: none; width: 42px; font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; color: hsl(var(--muted-foreground) / 0.75); padding-top: 3px;
+}
+.io .val { font-size: 12.5px; line-height: 1.55; }
+.io .val.said { color: hsl(var(--muted-foreground)); }
+
+/* ---------- language / transliteration ---------- */
+.split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.list li { display: flex; gap: 10px; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.list li svg { flex: none; margin-top: 3px; color: hsl(var(--primary)); }
+.list li b { color: hsl(var(--foreground)); font-weight: 600; }
+.mono-line {
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7;
+  background: hsl(var(--code-bg)); border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg); padding: 12px 14px; overflow-x: auto;
+}
+.mono-line .macron { color: hsl(var(--primary)); font-weight: 600; }
+.note {
+  margin-top: 14px; border-left: 2px solid hsl(var(--border));
+  padding-left: 12px; font-size: 12.5px; color: hsl(var(--muted-foreground));
+}
+
+/* ---------- routing diagram ---------- */
+.route { display: grid; gap: 10px; margin-top: 16px; }
+.route-row {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid hsl(var(--border)); border-radius: var(--radius-xl);
+  padding: 11px 14px; background: hsl(var(--card));
+}
+.route-key {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  flex: none;
+}
+.route-arrow { color: hsl(var(--muted-foreground) / 0.6); flex: none; }
+.route-val { font-size: 12.5px; color: hsl(var(--muted-foreground)); }
+.speaker { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+.speaker + .speaker { margin-top: 10px; }
+.speaker .who {
+  flex: none; width: 76px; font-size: 11px; font-weight: 600; letter-spacing: .01em;
+  color: hsl(var(--muted-foreground));
+}
+.speaker .said { color: hsl(var(--foreground) / 0.9); line-height: 1.55; }
+.tick { font-family: var(--font-mono); font-size: 10.5px; color: hsl(var(--muted-foreground) / 0.7); }
+
+/* ---------- insights ---------- */
+.stat { border: 1px solid hsl(var(--border)); border-radius: var(--radius-xl); padding: 14px; background: hsl(var(--card)); }
+.stat .k { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: hsl(var(--muted-foreground) / 0.8); }
+.stat .v { font-size: 26px; font-weight: 600; letter-spacing: -0.03em; margin-top: 4px; line-height: 1.1; }
+.stat .u { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
+.bars { display: flex; flex-direction: column; gap: 9px; margin-top: 12px; }
+.bar-row { display: grid; grid-template-columns: 84px 1fr 38px; align-items: center; gap: 10px; font-size: 12px; }
+.bar { height: 7px; border-radius: 999px; background: hsl(var(--secondary)); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 999px; background: var(--c, hsl(var(--primary))); }
+.bar-row .n { text-align: right; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+.heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+.heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; width: max-content; }
+.heat i { width: 11px; height: 11px; border-radius: 2.5px; background: hsl(var(--secondary)); display: block; }
+.heat i[data-l="1"] { background: color-mix(in srgb, hsl(var(--primary)) 22%, transparent); }
+.heat i[data-l="2"] { background: color-mix(in srgb, hsl(var(--primary)) 45%, transparent); }
+.heat i[data-l="3"] { background: color-mix(in srgb, hsl(var(--primary)) 70%, transparent); }
+.heat i[data-l="4"] { background: hsl(var(--primary)); }
+.heat-legend { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.heat-legend i { width: 11px; height: 11px; border-radius: 2.5px; display: block; }
+
+/* ---------- privacy ---------- */
+.layer { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 780px) { .layer { grid-template-columns: 1fr; } }
+.layer .card { display: flex; flex-direction: column; gap: 10px; }
+.layer h3 { display: flex; align-items: center; gap: 8px; }
+.rule-list { list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: hsl(var(--muted-foreground)); }
+.rule-list li { display: flex; gap: 8px; }
+.rule-list svg { flex: none; margin-top: 3px; }
+
+/* ---------- install ---------- */
+.steps { counter-reset: s; display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.step .num {
+  flex: none; width: 22px; height: 22px; border-radius: 999px;
+  border: 1px solid hsl(var(--border)); display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground));
+}
+.step .txt { font-size: 13px; color: hsl(var(--muted-foreground)); }
+.step .txt b { color: hsl(var(--foreground)); font-weight: 600; }
+pre {
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.75;
+  background: hsl(var(--code-bg)); border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg); padding: 13px 14px; overflow-x: auto; margin-top: 12px;
+}
+pre .c { color: hsl(var(--muted-foreground)); }
+.perms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* ---------- footer ---------- */
+footer { border-top: 1px solid hsl(var(--border)); padding: 34px 0 46px; margin-top: 20px; }
+.foot { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.foot-links { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; }
+.foot-links a { color: hsl(var(--muted-foreground)); text-decoration: none; }
+.foot-links a:hover { color: hsl(var(--foreground)); }
+.foot small { font-size: 11.5px; color: hsl(var(--muted-foreground) / 0.8); }
+
+/* ---------- motion ---------- */
+.rise { opacity: 0; transform: translateY(10px); transition: opacity .5s ease, transform .5s ease; }
+.rise.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+  .rise { opacity: 1; transform: none; }
+}
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<div class="dot-grid" id="dotgrid" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <!-- ============ NAV ============ -->
+  <div class="nav-outer">
+    <nav class="nav-pill">
+      <a class="wordmark" href="#top" aria-label="w1 home">
+        <svg class="mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+          <path d="M25 0H46Q50 0 50 4V25L25 50H4Q0 50 0 46V25Z"/>
+          <path d="M75 50H96Q100 50 100 54V75L75 100H54Q50 100 50 96V75Z"/>
+        </svg>
+        <b>w1</b><span>.osx.earth</span>
+      </a>
+      <div class="nav-links">
+        <a href="#modes">Modes</a>
+        <a href="#vocabulary" class="opt">Vocabulary</a>
+        <a href="#meetings">Meetings</a>
+        <a href="#insights" class="opt">Insights</a>
+        <a href="#privacy">Privacy</a>
+      </div>
+      <div class="nav-right">
+        <a class="btn btn-outline" href="#install" style="height:32px;padding:0 14px;font-size:12.5px;">Install</a>
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle colour theme">
+          <svg class="sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ============ HERO ============ -->
+  <header class="wrap hero" id="top">
+    <span class="badge"><span class="dot-live"></span>On-device transcription · macOS</span>
+    <h1>Speak. It types. In your words.</h1>
+    <p class="lede">
+      Hold a key and talk. Transcription runs on your Mac with Whisper on Apple MLX, so the audio stays
+      on the machine. And w1 gets the words a general dictionary never does: clinical terms, deal
+      language, the mandir glossary, whatever you actually say.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#install">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+        Download for macOS
+      </a>
+      <a class="btn btn-outline" href="https://github.com/osx-earth/w1.osx.earth" rel="noreferrer">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+        View source
+      </a>
+    </div>
+    <p class="cta-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      Transcription is on-device. Anything that rewrites or summarises tells you first.
+    </p>
+  </header>
+
+  <!-- ============ DEMO ============ -->
+  <div class="wrap">
+    <div class="panel demo rise" id="demoPanel">
+      <div class="demo-chrome">
+        <div class="tl"><i></i><i></i><i></i></div>
+        <div class="demo-app" id="demoApp">Notes</div>
+      </div>
+      <div class="demo-body" id="demoBody" aria-live="polite"></div>
+      <div class="pill-dock">
+        <div class="w1-pill" id="w1Pill">
+          <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="pill-state" id="pillState">Listening</span>
+          <span class="pill-mode" id="pillMode">Formal</span>
+        </div>
+      </div>
+    </div>
+    <p class="demo-legend">
+      <span class="kbd">Hold right option</span>
+      <span>speak, release. The text lands wherever your cursor already is.</span>
+    </p>
+  </div>
+
+  <!-- ============ RANGE ============ -->
+  <section class="wrap" id="range">
+    <div class="section-head rise">
+      <p class="eyebrow">The range is the point</p>
+      <h2>One key for clinic notes, investor updates,<br class="hide-sm" /> mandir work and everything else you write.</h2>
+      <p class="lede">
+        Most dictation tools ask you to pick a lane: a medical scribe, a meeting notetaker, a writing
+        assistant. A working day does not pick a lane. w1 assumes one person carries several
+        vocabularies and several tones, and that switching between them should cost one keypress.
+      </p>
+    </div>
+    <div class="grid g4">
+      <div class="card rise">
+        <span class="tag" style="--tag:#5A8BD6">Clinical</span>
+        <p class="mode-body">Notes, letters, handovers. Drug names, anatomy and abbreviations that a general model turns into nonsense, and a verbatim mode that never quietly improves what you said.</p>
+      </div>
+      <div class="card rise">
+        <span class="tag" style="--tag:#C9713D">Startup</span>
+        <p class="mode-body">Founder updates, memos and product thinking spoken out loud on a walk, arriving as structure instead of mush.</p>
+      </div>
+      <div class="card rise">
+        <span class="tag" style="--tag:#8F7ED8">Community</span>
+        <p class="mode-body">Gujarati terminology, names and sacred vocabulary with canonical spellings that mainstream tools get wrong every time.</p>
+      </div>
+      <div class="card rise">
+        <span class="tag" style="--tag:#4F9E6F">Personal</span>
+        <p class="mode-body">Messages, journal entries and half-formed ideas at speed, where sounding like yourself is the entire requirement.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODES ============ -->
+  <section class="wrap" id="modes">
+    <div class="section-head rise">
+      <p class="eyebrow">Modes</p>
+      <h2>Same key, different destination.</h2>
+      <p class="lede">
+        Plain dictation gives you the transcript. The modes below take that transcript somewhere:
+        into a prompt, into your own prose, into something you can send. Pick one from the menu bar
+        or bind it to its own key.
+      </p>
+    </div>
+
+    <div class="grid g2">
+      <article class="card rise">
+        <div class="mode-head">
+          <h3>Prompt Engineer</h3>
+          <svg class="mode-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><rect x="7" y="7" width="10" height="10" rx="3"/></svg>
+        </div>
+        <p class="mode-body">
+          Think out loud and get a prompt back with the shape a model actually needs: the task, the
+          context you mentioned in passing, the constraints you assumed, the output format you wanted.
+          The mode most likely to save you a rewrite.
+        </p>
+        <div class="io">
+          <div class="row"><span class="lbl">Said</span><span class="val said">right so i need something that looks at the last six months of referrals and tells me which clinics are running over, and i want it as a table i can paste into the board pack</span></div>
+          <div class="row"><span class="lbl">Typed</span><span class="val">Task: analyse referral volume by clinic over the last six months and identify clinics exceeding capacity. Context: output goes into a board pack. Format: a table, one row per clinic, sorted by overrun. Flag any month with incomplete data rather than estimating it.</span></div>
+        </div>
+      </article>
+
+      <article class="card rise">
+        <div class="mode-head">
+          <h3>Polish</h3>
+          <svg class="mode-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 13.6 9.2 19 10.8l-5.4 1.6L12 17.6 10.4 12.4 5 10.8l5.4-1.6z"/><path d="M18 16.5 18.8 19 21 19.8 18.8 20.6 18 23l-.8-2.4L15 19.8l2.2-.8z"/></svg>
+        </div>
+        <p class="mode-body">
+          Clearer, not different. Repetition and false starts go, the sentence order gets fixed, and
+          the words you chose stay the words you chose. Use it for anything a person will read once
+          and reply to.
+        </p>
+        <div class="io">
+          <div class="row"><span class="lbl">Said</span><span class="val said">so basically the thing is, um, we can't ship friday because the notarisation takes, like, a day and we haven't even, we haven't started it yet</span></div>
+          <div class="row"><span class="lbl">Typed</span><span class="val">We cannot ship on Friday. Notarisation takes about a day and we have not started it yet.</span></div>
+        </div>
+      </article>
+
+      <article class="card rise">
+        <div class="mode-head">
+          <h3>Formal</h3>
+          <svg class="mode-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        </div>
+        <p class="mode-body">
+          A light pass, not a rewrite. Punctuation, capitalisation, contractions opened up, dates and
+          place names cased properly. Nothing is added, nothing is summarised. For letters, referrals
+          and anything with a recipient who is not a friend.
+        </p>
+        <div class="io">
+          <div class="row"><span class="lbl">Said</span><span class="val said">thanks for seeing mrs okafor on the fourteenth of july in london she'll need a repeat fbc in six weeks</span></div>
+          <div class="row"><span class="lbl">Typed</span><span class="val">Thank you for seeing Mrs Okafor on 14 July in London. She will need a repeat FBC in six weeks.</span></div>
+        </div>
+      </article>
+
+      <article class="card rise">
+        <div class="mode-head">
+          <h3>Street</h3>
+          <svg class="mode-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h13"/></svg>
+        </div>
+        <p class="mode-body">
+          Lowercase stays lowercase. Slang, shorthand and the words you actually use survive intact,
+          because a message that reads like a press release reads like it was not written by you.
+          Only the transcription errors get fixed.
+        </p>
+        <div class="io">
+          <div class="row"><span class="lbl">Said</span><span class="val said">yeah lets push the seed deck to monday, i'll redo the metrics slide tonight, its the only bit thats actually weak</span></div>
+          <div class="row"><span class="lbl">Typed</span><span class="val">yeah lets push the seed deck to monday, i'll redo the metrics slide tonight, it's the only bit that's actually weak</span></div>
+        </div>
+      </article>
+    </div>
+
+    <p class="note rise" style="max-width:72ch">
+      Examples are illustrative, written to show what each mode is for. Prompt Engineer, Polish,
+      Formal and Street reshape the transcript, which is the layer that may use a language model
+      beyond your machine. w1 tells you which layer a mode uses before it runs, and plain
+      transcription always works on its own.
+    </p>
+  </section>
+
+  <!-- ============ VOCABULARY ============ -->
+  <section class="wrap" id="vocabulary">
+    <div class="section-head rise">
+      <p class="eyebrow">Vocabulary</p>
+      <h2>A glossary layer, not a custom words box.</h2>
+      <p class="lede">
+        Most tools give you a handful of slots for names the model keeps mangling. w1 has a
+        correction engine: give it a vocabulary and it enforces canonical spellings on the transcript,
+        with rules, sources and tests behind them.
+      </p>
+    </div>
+
+    <div class="split">
+      <div class="card rise">
+        <h3>BAPS was the hardest test, not the target market</h3>
+        <p class="mode-body">
+          w1 started as a tool for one stubborn problem: getting Gujarati sacred terminology spelled
+          correctly, every time, inside ordinary English text. Hundreds of terms, canonical spellings,
+          a strict transliteration rule, and a domain where nearly right is simply wrong. Solving that
+          properly meant building a real vocabulary layer instead of an autocorrect list. That layer is
+          now what makes w1 get drug names, company names and your own jargon right too. The mandir
+          glossary still ships. It is one vocabulary among several.
+        </p>
+        <ul class="list">
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>Canonicalisation, not substitution.</b> A term has one correct spelling and w1 lands on it, whichever way you said it.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>Sourced entries.</b> Glossary entries carry their provenance, so a correction can be checked rather than trusted.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>Your own list.</b> Add the words your work depends on: a drug formulary, a cap table, a codebase, the names of people you email.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>A verbatim mode that stays verbatim.</b> When accuracy matters more than tidiness, no vocabulary pass runs at all.</span></li>
+        </ul>
+      </div>
+
+      <div class="card rise">
+        <h3>Language and transliteration</h3>
+        <p class="mode-body">
+          English is the default. A menu switches to Gujarati or to Mixed, for the way people
+          actually talk when two languages share a sentence.
+        </p>
+        <div class="mono-line" style="margin-top:14px">
+          jay sv<span class="macron">ā</span>min<span class="macron">ā</span>r<span class="macron">ā</span>yan, <span class="macron">ā</span>je kath<span class="macron">ā</span> s<span class="macron">ā</span>ras hat<span style="opacity:.55">i</span>
+        </div>
+        <ul class="list">
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>English output always carries transliterations</b>, so a Gujarati term arrives in Roman script you can read, search and paste.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg><span><b>One diacritic, ever.</b> The long a macron and nothing else. No dots, no underlines, no marks that break in someone else's font.</span></li>
+        </ul>
+        <p class="note">
+          Honest status: Gujarati recognition accuracy is still being worked on. The language menu is
+          there and the transliteration rule is settled, but w1 is not claiming Gujarati is solved
+          today. Training data comes next.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MEETINGS ============ -->
+  <section class="wrap" id="meetings">
+    <div class="section-head rise">
+      <p class="eyebrow">Meetings</p>
+      <h2>A transcript that ends up in your notes, not someone else's product.</h2>
+      <p class="lede">
+        w1 captures your microphone and the incoming system audio together, shows a live transcript
+        with speaker labels while the meeting runs, and can join a Teams, Google Meet or Zoom call
+        on its own.
+      </p>
+    </div>
+
+    <div class="split">
+      <div class="card rise">
+        <div class="mode-head" style="margin-bottom:14px">
+          <h3>Live transcript</h3>
+          <span class="badge" style="padding:3px 9px;font-size:10.5px;"><span class="dot-live"></span>Recording</span>
+        </div>
+        <div class="speaker"><span class="who">You</span><span class="said">Can we get the referral dashboard in front of the clinical leads before the board meeting?</span></div>
+        <div class="speaker"><span class="who">Speaker 2</span><span class="said">Only if the data pull finishes on Thursday. Otherwise we are showing them a half-built chart.</span></div>
+        <div class="speaker"><span class="who">Speaker 3</span><span class="said">I can take the pull. Give me until Thursday lunchtime and I will flag anything missing rather than filling it in.</span></div>
+        <p class="tick" style="margin-top:14px">Speaker labels are automatic. Rename them once and the name sticks for the rest of the call.</p>
+      </div>
+
+      <div class="card rise">
+        <h3>Where the summary goes</h3>
+        <p class="mode-body">
+          When the meeting ends, the notes are routed to one of your contexts. w1 reads that context
+          before it writes: it updates the notes you already have, frames the summary against what is
+          already there, and generates tasks that fit the project rather than restating the call.
+        </p>
+        <div class="route">
+          <div class="route-row">
+            <span class="route-key">jay@osx.earth</span>
+            <svg class="route-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            <span class="route-val">Personal notes and tasks</span>
+          </div>
+          <div class="route-row">
+            <span class="route-key">baps.solutions</span>
+            <svg class="route-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            <span class="route-val">Community and mandir work</span>
+          </div>
+          <div class="route-row">
+            <span class="route-key">sapio.health</span>
+            <svg class="route-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            <span class="route-val">Company notes, decisions and follow-ups</span>
+          </div>
+        </div>
+        <p class="note">
+          Meeting summarisation reads a transcript and writes prose, so it uses the model layer, not
+          only the on-device one. It says so before it runs, and the raw transcript is yours either way.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSIGHTS ============ -->
+  <section class="wrap" id="insights">
+    <div class="section-head rise">
+      <p class="eyebrow">Insights</p>
+      <h2>What you actually said, counted.</h2>
+      <p class="lede">
+        Not a reason to install w1, but a good reason to keep it. Words per minute, total words
+        dictated, how often you had to fix something, which apps you dictate into, and how many days
+        in a row you have kept it up.
+      </p>
+    </div>
+
+    <div class="panel rise" style="padding:20px">
+      <div class="grid g4">
+        <div class="stat"><div class="k">Speaking rate</div><div class="v">142<span class="u"> wpm</span></div></div>
+        <div class="stat"><div class="k">Words dictated</div><div class="v">38,412</div></div>
+        <div class="stat"><div class="k">Fixes made</div><div class="v">1,206</div></div>
+        <div class="stat"><div class="k">Current streak</div><div class="v">17<span class="u"> days</span></div></div>
+      </div>
+
+      <div class="grid g2" style="margin-top:14px">
+        <div class="stat">
+          <div class="k">Where it lands</div>
+          <div class="bars">
+            <div class="bar-row"><span>Notes</span><span class="bar"><i style="width:82%"></i></span><span class="n">31%</span></div>
+            <div class="bar-row"><span>Mail</span><span class="bar"><i style="width:64%;--c:#5A8BD6"></i></span><span class="n">24%</span></div>
+            <div class="bar-row"><span>Slack</span><span class="bar"><i style="width:47%;--c:#8F7ED8"></i></span><span class="n">18%</span></div>
+            <div class="bar-row"><span>Obsidian</span><span class="bar"><i style="width:38%;--c:#4F9E6F"></i></span><span class="n">15%</span></div>
+            <div class="bar-row"><span>Everything else</span><span class="bar"><i style="width:31%;--c:#C9713D"></i></span><span class="n">12%</span></div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="k">Daily dictation</div>
+          <div class="heat-scroll" style="margin-top:12px">
+            <div class="heat" id="heat" aria-hidden="true"></div>
+          </div>
+          <div class="heat-legend">
+            <span>Less</span>
+            <i style="background:hsl(var(--secondary))"></i>
+            <i data-l="1" style="background:color-mix(in srgb, hsl(var(--primary)) 22%, transparent)"></i>
+            <i data-l="2" style="background:color-mix(in srgb, hsl(var(--primary)) 45%, transparent)"></i>
+            <i data-l="3" style="background:color-mix(in srgb, hsl(var(--primary)) 70%, transparent)"></i>
+            <i data-l="4" style="background:hsl(var(--primary))"></i>
+            <span>More</span>
+          </div>
+        </div>
+      </div>
+      <p class="tick" style="margin-top:14px">
+        Illustrative view. The figures above are placeholders for layout, not measurements. Your
+        dashboard shows your own numbers, computed on your own machine.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ PRIVACY ============ -->
+  <section class="wrap" id="privacy">
+    <div class="section-head rise">
+      <p class="eyebrow">Privacy</p>
+      <h2>Two layers, stated plainly.</h2>
+      <p class="lede">
+        Plenty of tools claim nothing ever leaves your computer. That claim is only true if the tool
+        does nothing but transcribe. Here is where the line actually sits in w1.
+      </p>
+    </div>
+
+    <div class="layer">
+      <div class="card rise">
+        <h3>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--primary))"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          On your Mac, unconditionally
+        </h3>
+        <ul class="rule-list">
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--primary))"><path d="m4 12 5 5L20 6"/></svg><span>Whisper runs locally through Apple MLX. Audio is turned into text on the machine.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--primary))"><path d="m4 12 5 5L20 6"/></svg><span>The glossary and correction pass are local code over local data.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--primary))"><path d="m4 12 5 5L20 6"/></svg><span>Plain dictation works offline, with no account, after the model has been downloaded once.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--primary))"><path d="m4 12 5 5L20 6"/></svg><span>Insights are computed from your own history on disk.</span></li>
+        </ul>
+      </div>
+
+      <div class="card rise">
+        <h3>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(var(--muted-foreground))"><path d="M12 3v4"/><circle cx="12" cy="12" r="3"/><path d="M12 17v4"/><path d="m5 7 3 2"/><path d="m16 15 3 2"/><path d="m5 17 3-2"/><path d="m16 9 3-2"/></svg>
+          The layer that rewrites
+        </h3>
+        <ul class="rule-list">
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>Prompt Engineer, Polish, Formal, Street and meeting summarisation work on the transcript, and may use a language model that does not run on your Mac.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>Every mode names the layer it uses before it runs. Nothing is sent quietly.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>Turn the rewriting layer off entirely and w1 remains a complete dictation tool.</span></li>
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>Anything involving patient information stays in verbatim dictation. That path never leaves the device.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="note rise" style="max-width:74ch">
+      w1 needs three macOS permissions and no more: Microphone to hear you, Accessibility to paste
+      into the focused app, and Input Monitoring so the global hotkey works. macOS will ask for each
+      one, and you can see exactly why in the source.
+    </p>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section class="wrap" id="install">
+    <div class="section-head rise">
+      <p class="eyebrow">Install</p>
+      <h2>Two ways in.</h2>
+      <p class="lede">
+        w1 is built for Apple Silicon. On an Intel Mac it falls back to a slower CPU transcription
+        backend rather than MLX, and everything else works the same.
+      </p>
+    </div>
+
+    <div class="split">
+      <div class="card rise">
+        <div class="mode-head">
+          <h3>Testers: the app</h3>
+          <span class="tag" style="--tag:#5A8BD6">Signed and notarized</span>
+        </div>
+        <p class="mode-body">
+          A disk image, signed with an Apple Developer ID and notarized by Apple, so it opens without
+          a Gatekeeper warning and keeps its permissions across updates.
+        </p>
+        <div class="steps">
+          <div class="step"><span class="num">1</span><span class="txt">Download <b>W1.dmg</b> from the latest release and open it.</span></div>
+          <div class="step"><span class="num">2</span><span class="txt">Drag <b>W1.app</b> into Applications, then launch it from there.</span></div>
+          <div class="step"><span class="num">3</span><span class="txt">Grant the three permissions when macOS asks. w1 lives in the menu bar.</span></div>
+          <div class="step"><span class="num">4</span><span class="txt">First launch downloads the Whisper model once, about 1.5 GB, and caches it locally.</span></div>
+        </div>
+        <div class="perms">
+          <span class="badge" style="padding:4px 10px;font-size:11px">Microphone</span>
+          <span class="badge" style="padding:4px 10px;font-size:11px">Accessibility</span>
+          <span class="badge" style="padding:4px 10px;font-size:11px">Input Monitoring</span>
+        </div>
+        <a class="btn btn-primary" style="margin-top:16px" href="https://github.com/osx-earth/w1.osx.earth/releases/latest" rel="noreferrer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+          Download W1.dmg
+        </a>
+        <p class="tick" style="margin-top:10px">No Homebrew formula and no App Store listing. The disk image is the distribution.</p>
+      </div>
+
+      <div class="card rise">
+        <div class="mode-head">
+          <h3>Developers: from source</h3>
+          <span class="tag" style="--tag:#4F9E6F">install.sh</span>
+        </div>
+        <p class="mode-body">
+          The installer creates a Python 3.12 virtual environment, installs w1 with the MLX and macOS
+          extras, pre-downloads the Whisper model and runs an environment check. It needs
+          <span class="kbd">uv</span> on your path.
+        </p>
+        <pre><span class="c"># clone and install</span>
+git clone https://github.com/osx-earth/w1.osx.earth.git w1
+cd w1
+./install.sh
+
+<span class="c"># launch the menu bar app</span>
+./w1 app
+
+<span class="c"># check the environment at any time</span>
+./w1 doctor</pre>
+        <p class="tick" style="margin-top:12px">
+          Building your own <span class="kbd">W1.app</span> is one more step:
+          <span class="kbd">packaging/build.sh --dmg</span>. Signing and notarization details are in
+          docs/PACKAGING.md.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="wrap foot">
+      <div>
+        <a class="wordmark" href="#top" style="margin-bottom:8px">
+          <svg class="mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true" style="width:18px;height:18px">
+            <path d="M25 0H46Q50 0 50 4V25L25 50H4Q0 50 0 46V25Z"/>
+            <path d="M75 50H96Q100 50 100 54V75L75 100H54Q50 100 50 96V75Z"/>
+          </svg>
+          <b>w1</b><span>.osx.earth</span>
+        </a>
+        <small>A personal tool, built in London, for the way one person actually writes.</small>
+      </div>
+      <div class="foot-links">
+        <a href="#modes">Modes</a>
+        <a href="#vocabulary">Vocabulary</a>
+        <a href="#meetings">Meetings</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/osx-earth/w1.osx.earth" rel="noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  try {
+    var saved = localStorage.getItem("w1-theme");
+    if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+  } catch (e) {}
+  document.getElementById("themeBtn").addEventListener("click", function () {
+    var explicit = root.getAttribute("data-theme");
+    var isDark = explicit
+      ? explicit === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = isDark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("w1-theme", next); } catch (e) {}
+  });
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- cursor spotlight on the dot lattice ---------- */
+  var grid = document.getElementById("dotgrid");
+  if (!reduced && window.matchMedia("(hover: hover)").matches) {
+    window.addEventListener("pointermove", function (e) {
+      grid.style.setProperty("--mx", e.clientX + "px");
+      grid.style.setProperty("--my", e.clientY + "px");
+    }, { passive: true });
+  }
+
+  /* ---------- reveal on scroll ---------- */
+  var rises = document.querySelectorAll(".rise");
+  if (reduced || !("IntersectionObserver" in window)) {
+    rises.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.15 });
+    rises.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---------- dictation demo ----------
+     Four samples, one per register. Highlighted tokens are the words a
+     general dictionary gets wrong: the vocabulary layer is doing the work. */
+  var samples = [
+    {
+      app: "Notes", mode: "Verbatim",
+      tokens: [
+        { t: "Patient reports intermittent chest pain on exertion, resolving at rest. " },
+        { t: "ECG", hl: true }, { t: " shows sinus rhythm with no " },
+        { t: "ischaemic", hl: true }, { t: " changes. Continue " },
+        { t: "bisoprolol", hl: true }, { t: " 2.5 mg once daily." }
+      ]
+    },
+    {
+      app: "Mail", mode: "Formal",
+      tokens: [
+        { t: "Quick update before Thursday: the " }, { t: "Seed", hl: true },
+        { t: " round is oversubscribed, the " }, { t: "term sheet", hl: true },
+        { t: " is signed, and " }, { t: "Sapio", hl: true },
+        { t: " closes at the end of the month." }
+      ]
+    },
+    {
+      app: "Obsidian", mode: "Polish",
+      tokens: [
+        { t: "Set up the " }, { t: "sabha", hl: true }, { t: " at the " },
+        { t: "mandir", hl: true }, { t: " for Saturday evening. " },
+        { t: "Arti", hl: true }, { t: " at seven, " }, { t: "katha", hl: true },
+        { t: " after, and I will send the rota tonight." }
+      ]
+    },
+    {
+      app: "Messages", mode: "Street",
+      tokens: [
+        { t: "yeah im on nights til friday so lets do sunday instead, ill bring the " },
+        { t: "khichdi", hl: true }, { t: " and you sort the rest" }
+      ]
+    }
+  ];
+
+  var body = document.getElementById("demoBody");
+  var appEl = document.getElementById("demoApp");
+  var stateEl = document.getElementById("pillState");
+  var modeEl = document.getElementById("pillMode");
+  var pill = document.getElementById("w1Pill");
+  var caret = document.createElement("span");
+  caret.className = "caret";
+
+  function render(sample) {
+    body.textContent = "";
+    var spans = [];
+    sample.tokens.forEach(function (tok) {
+      var s = document.createElement("span");
+      if (tok.hl) s.className = "hl";
+      s.textContent = "";
+      body.appendChild(s);
+      spans.push(s);
+    });
+    body.appendChild(caret);
+    return spans;
+  }
+
+  function fill(sample, spans, chars) {
+    var left = chars;
+    for (var i = 0; i < sample.tokens.length; i++) {
+      var full = sample.tokens[i].t;
+      if (left <= 0) { spans[i].textContent = ""; continue; }
+      if (left >= full.length) { spans[i].textContent = full; left -= full.length; }
+      else { spans[i].textContent = full.slice(0, left); left = 0; }
+    }
+  }
+
+  function total(sample) {
+    return sample.tokens.reduce(function (n, t) { return n + t.t.length; }, 0);
+  }
+
+  var idx = 0;
+  var timer = null;
+
+  function play(sample) {
+    appEl.textContent = sample.app;
+    modeEl.textContent = sample.mode;
+    var spans = render(sample);
+    var len = total(sample);
+
+    if (reduced) {
+      fill(sample, spans, len);
+      stateEl.textContent = "Inserted";
+      pill.classList.add("idle");
+      timer = setTimeout(next, 5200);
+      return;
+    }
+
+    pill.classList.remove("idle");
+    stateEl.textContent = "Listening";
+    var n = 0;
+    timer = setTimeout(function step() {
+      n += Math.max(1, Math.round(len / 90));
+      if (n >= len) {
+        fill(sample, spans, len);
+        stateEl.textContent = "Inserted";
+        pill.classList.add("idle");
+        timer = setTimeout(next, 2600);
+        return;
+      }
+      fill(sample, spans, n);
+      timer = setTimeout(step, 34);
+    }, 700);
+  }
+
+  function next() {
+    idx = (idx + 1) % samples.length;
+    play(samples[idx]);
+  }
+
+  var panel = document.getElementById("demoPanel");
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    play(samples[0]);
+  }
+  if ("IntersectionObserver" in window) {
+    var dio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { start(); dio.disconnect(); } });
+    }, { threshold: 0.25 });
+    dio.observe(panel);
+  } else {
+    start();
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && timer) { clearTimeout(timer); timer = null; }
+    else if (!document.hidden && started && !timer) { play(samples[idx]); }
+  });
+
+  /* ---------- contribution heatmap (deterministic placeholder pattern) ---------- */
+  var heat = document.getElementById("heat");
+  if (heat) {
+    var weeks = 26, cells = weeks * 7;
+    for (var i = 0; i < cells; i++) {
+      var day = i % 7;
+      var w = Math.floor(i / 7);
+      var v = (Math.sin(i * 1.7) + Math.cos(w * 0.9)) * 1.4 + 2;
+      if (day > 4) v -= 1.4;
+      if (w < 3) v -= 1.2;
+      var level = Math.max(0, Math.min(4, Math.round(v)));
+      var c = document.createElement("i");
+      if (level > 0) c.setAttribute("data-l", String(level));
+      heat.appendChild(c);
+    }
+  }
+})();
+</script>
+</body>
+</html>
